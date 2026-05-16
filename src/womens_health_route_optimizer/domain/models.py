@@ -53,6 +53,19 @@ class Route:
         return sum(point.supply_demand for point in self.ordered_points)
 
 
+@dataclass(frozen=True)
+class RouteStop:
+    sequence: int
+    point: AttendancePoint
+    leg_distance_km: float
+    estimated_arrival_time: time
+    service_start_time: time
+    time_window_start: time
+    time_window_end: time
+    waiting_minutes: float
+    delay_minutes: float
+
+
 @dataclass
 class OptimizationResult:
     best_route: Route

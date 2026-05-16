@@ -9,6 +9,7 @@ from womens_health_route_optimizer.domain.models import (
     DistributionCenter,
     OptimizationResult,
     Route,
+    RouteStop,
     Vehicle,
 )
 
@@ -21,5 +22,6 @@ __all__ = [
     "AttendancePoint",
     "Vehicle",
     "Route",
+    "RouteStop",
     "OptimizationResult",
 ]
