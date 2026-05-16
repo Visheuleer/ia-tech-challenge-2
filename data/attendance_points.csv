@@ -1,0 +1,21 @@
+id,name,type,priority,latitude,longitude,supply_demand,time_window_start,time_window_end,service_time_minutes,notes
+P001,Hospital da Mulher - Unidade Norte,obstetric_emergency,1,-23.520100,-46.620500,3,08:00,10:00,30,Emergência obstétrica com necessidade de atendimento prioritário
+P002,Hospital Municipal - Unidade Leste,obstetric_emergency,1,-23.545200,-46.573900,3,08:30,11:00,30,Emergência obstétrica em unidade hospitalar parceira
+P003,Centro Obstétrico - Unidade Sul,obstetric_emergency,1,-23.596800,-46.638900,3,09:00,12:00,30,Atendimento obstétrico crítico com janela curta
+P004,Pronto Atendimento Materno,obstetric_emergency,1,-23.567300,-46.690200,3,08:00,11:30,30,Prioridade máxima para atendimento materno emergencial
+P005,Centro de Apoio à Mulher - Região Central,domestic_violence,2,-23.558700,-46.640900,1,09:00,13:00,40,Atendimento sensível com protocolo de discrição
+P006,Unidade de Proteção Social - Oeste,domestic_violence,2,-23.553900,-46.676400,1,10:00,14:00,40,Caso com necessidade de abordagem cuidadosa e sigilosa
+P007,Centro Especializado de Atendimento - Leste,domestic_violence,2,-23.536500,-46.594200,1,09:30,13:30,40,Atendimento relacionado a protocolo especial de segurança
+P008,Unidade de Acolhimento Feminino - Sul,domestic_violence,2,-23.612400,-46.656700,1,11:00,15:00,40,Atendimento sensível com prioridade operacional elevada
+P009,Farmácia Hospitalar - Unidade Centro,hormonal_medication,3,-23.548900,-46.638800,2,08:00,14:00,15,Entrega de medicamento hormonal com temperatura controlada
+P010,Farmácia Especializada - Unidade Norte,hormonal_medication,3,-23.514800,-46.647100,2,08:00,15:00,15,Medicamento hormonal com necessidade de transporte cuidadoso
+P011,Ambulatório de Endocrinologia Feminina,hormonal_medication,3,-23.562600,-46.612300,2,09:00,16:00,15,Entrega programada de medicamento hormonal
+P012,Clínica Integrada da Mulher,hormonal_medication,3,-23.581900,-46.604500,2,10:00,17:00,15,Medicamento hormonal destinado a atendimento ambulatorial
+P013,Unidade de Saúde Reprodutiva,hormonal_medication,3,-23.532800,-46.663200,2,08:30,15:30,15,Entrega com controle de temperatura e registro de recebimento
+P014,Centro Terapêutico Feminino,hormonal_medication,3,-23.599100,-46.680300,2,09:30,16:30,15,Entrega de suprimentos hormonais de uso especializado
+P015,Unidade Pós-Parto - Região Central,postpartum_care,4,-23.557200,-46.629800,2,13:00,17:00,30,Atendimento pós-parto com janela específica
+P016,Ambulatório Materno Infantil,postpartum_care,4,-23.574500,-46.622000,2,12:00,16:00,30,Acompanhamento pós-parto programado
+P017,Centro de Apoio Pós-Natal - Norte,postpartum_care,4,-23.508700,-46.632900,2,13:30,17:30,30,Visita pós-parto com horário definido
+P018,Unidade de Saúde da Família - Leste,postpartum_care,4,-23.548100,-46.585600,2,12:30,16:30,30,Atendimento pós-parto em unidade territorial
+P019,Centro Materno - Oeste,postpartum_care,4,-23.565800,-46.704400,2,14:00,18:00,30,Acompanhamento pós-parto em região oeste
+P020,Unidade Materna - Sul,postpartum_care,4,-23.621300,-46.642500,2,13:00,17:00,30,Atendimento pós-parto com equipe especializada
