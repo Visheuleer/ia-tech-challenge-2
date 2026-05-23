@@ -131,10 +131,16 @@ with metric_col3:
     )
 
 with metric_col4:
+    seed_text = (
+        f"Seed: {active_settings.random_seed}"
+        if active_settings.random_seed is not None
+        else "Seed aleatória"
+    )
+
     render_metric_card(
         "Gerações",
         str(result.generations),
-        f"População: {active_settings.population_size}",
+        f"População: {active_settings.population_size} | {seed_text}",
     )
 
 render_section_title("Penalidades aplicadas")

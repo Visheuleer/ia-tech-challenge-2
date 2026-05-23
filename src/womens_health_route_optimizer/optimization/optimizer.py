@@ -14,6 +14,7 @@ from womens_health_route_optimizer.optimization.operators import (
     select_parents,
     sort_population_by_fitness,
 )
+import random
 
 
 class RouteOptimizer:
@@ -33,6 +34,8 @@ class RouteOptimizer:
         self.settings = app_settings
 
     def optimize(self) -> OptimizationResult:
+        if self.settings.random_seed is not None:
+            random.seed(self.settings.random_seed)
         population = generate_initial_population(
             points=self.attendance_points,
             population_size=self.settings.population_size,

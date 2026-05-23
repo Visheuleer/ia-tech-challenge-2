@@ -33,6 +33,18 @@ def render_sidebar() -> Settings:
         step=0.05,
     )
 
+    random_seed = st.sidebar.number_input(
+        "Seed aleatória",
+        min_value=0,
+        value=settings.random_seed or 0,
+        step=1,
+    )
+
+    use_random_seed = st.sidebar.checkbox(
+        "Usar seed fixa",
+        value=settings.random_seed is not None,
+    )
+
     st.sidebar.markdown("### Veículo")
 
     vehicle_capacity = st.sidebar.slider(
@@ -92,6 +104,7 @@ def render_sidebar() -> Settings:
         generations=generations,
         mutation_probability=mutation_probability,
         elitism_size=settings.elitism_size,
+        random_seed=random_seed if use_random_seed else None,
         vehicle_capacity=vehicle_capacity,
         average_vehicle_speed_kmh=settings.average_vehicle_speed_kmh,
         route_start_time=settings.route_start_time,

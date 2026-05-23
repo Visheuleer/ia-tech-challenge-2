@@ -14,6 +14,7 @@ class Settings:
     generations: int = 200
     mutation_probability: float = 0.20
     elitism_size: int = 1
+    random_seed: int | None = 42
 
     vehicle_capacity: int = 20
 
