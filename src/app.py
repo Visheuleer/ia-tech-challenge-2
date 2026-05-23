@@ -17,7 +17,7 @@ from womens_health_route_optimizer.optimization import (
 )
 from womens_health_route_optimizer.utils.formatters import format_route_summary
 from womens_health_route_optimizer.visualization import create_route_map
-
+from womens_health_route_optimizer.llm import RouteReportGenerator
 
 st.set_page_config(
     page_title="Otimização de Rotas - Saúde da Mulher",
@@ -299,14 +299,42 @@ capacity_penalty_weight = st.sidebar.number_input(
     step=100.0,
 )
 
-run_settings = build_run_settings(
+st.sidebar.markdown("### LLM")
+
+llm_provider = st.sidebar.selectbox(
+    "Provedor",
+    options=["mock", "ollama"],
+    index=0,
+)
+
+ollama_model = st.sidebar.text_input(
+    "Modelo Ollama",
+    value=settings.ollama_model,
+)
+
+llm_temperature = st.sidebar.slider(
+    "Temperatura",
+    min_value=0.0,
+    max_value=1.0,
+    value=settings.llm_temperature,
+    step=0.1,
+)
+
+run_settings = Settings(
     population_size=population_size,
     generations=generations,
     mutation_probability=mutation_probability,
+    elitism_size=settings.elitism_size,
     vehicle_capacity=vehicle_capacity,
+    average_vehicle_speed_kmh=settings.average_vehicle_speed_kmh,
+    route_start_time=settings.route_start_time,
     priority_penalty_weight=priority_penalty_weight,
     time_window_penalty_weight=time_window_penalty_weight,
     capacity_penalty_weight=capacity_penalty_weight,
+    llm_provider=llm_provider,
+    ollama_base_url=settings.ollama_base_url,
+    ollama_model=ollama_model,
+    llm_temperature=llm_temperature,
 )
 
 vehicle = Vehicle(
@@ -440,11 +468,12 @@ route_df = build_route_dataframe(
     app_settings=active_settings,
 )
 
-tab_table, tab_summary, tab_fitness = st.tabs(
+tab_table, tab_summary, tab_fitness, tab_llm = st.tabs(
     [
         "Tabela da rota",
         "Resumo textual",
         "Evolução do fitness",
+        "Relatórios com LLM",
     ]
 )
 
@@ -520,3 +549,73 @@ with tab_fitness:
         y="Fitness",
         use_container_width=True,
     )
+
+with tab_llm:
+    st.markdown("### Geração de relatórios com LLM")
+
+    st.info(
+        "Use o modo mock para demonstração sem dependências externas. "
+        "Use o modo Ollama para gerar respostas com um modelo open-source local."
+    )
+
+    report_generator = RouteReportGenerator(app_settings=active_settings)
+
+    llm_col1, llm_col2 = st.columns(2)
+
+    with llm_col1:
+        if st.button("Gerar manual de instruções", use_container_width=True):
+            with st.spinner("Gerando manual..."):
+                try:
+                    manual = report_generator.generate_instruction_manual(
+                        route=best_route,
+                        distribution_center=center,
+                    )
+                    st.session_state.instruction_manual = manual
+                except RuntimeError as error:
+                    st.error(str(error))
+
+    with llm_col2:
+        if st.button("Gerar roteiro detalhado", use_container_width=True):
+            with st.spinner("Gerando roteiro..."):
+                try:
+                    visit_plan = report_generator.generate_visit_plan(
+                        route=best_route,
+                        distribution_center=center,
+                    )
+                    st.session_state.visit_plan = visit_plan
+                except RuntimeError as error:
+                    st.error(str(error))
+
+    if "instruction_manual" in st.session_state:
+        st.markdown("#### Manual de instruções")
+        st.markdown(st.session_state.instruction_manual)
+
+    if "visit_plan" in st.session_state:
+        st.markdown("#### Roteiro detalhado")
+        st.markdown(st.session_state.visit_plan)
+
+    st.markdown("### Perguntas sobre a rota")
+
+    question = st.text_input(
+        "Digite uma pergunta",
+        placeholder="Ex.: Qual é o próximo atendimento prioritário?",
+    )
+
+    if st.button("Responder pergunta", use_container_width=True):
+        if not question.strip():
+            st.warning("Digite uma pergunta antes de consultar a LLM.")
+        else:
+            with st.spinner("Consultando LLM..."):
+                try:
+                    answer = report_generator.answer_question(
+                        route=best_route,
+                        distribution_center=center,
+                        question=question,
+                    )
+                    st.session_state.llm_answer = answer
+                except RuntimeError as error:
+                    st.error(str(error))
+
+    if "llm_answer" in st.session_state:
+        st.markdown("#### Resposta")
+        st.markdown(st.session_state.llm_answer)
