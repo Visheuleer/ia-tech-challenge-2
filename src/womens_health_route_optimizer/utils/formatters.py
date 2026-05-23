@@ -1,3 +1,4 @@
+from womens_health_route_optimizer.config import Settings, settings
 from womens_health_route_optimizer.domain import (
     ATTENDANCE_TYPE_LABELS,
     DistributionCenter,
@@ -9,25 +10,37 @@ from womens_health_route_optimizer.optimization.simulation import simulate_route
 def format_route_summary(
     route: Route,
     distribution_center: DistributionCenter,
+    app_settings: Settings = settings,
 ) -> str:
+    """
+    Gera um resumo textual simples da rota otimizada.
+    """
+
     stops = simulate_route_stops(
         route_points=route.ordered_points,
         distribution_center=distribution_center,
+        app_settings=app_settings,
     )
 
-    lines: list[str] = ["Resumo da rota otimizada", "=" * 40, f"Distância total: {route.total_distance_km:.2f} km",
-                        f"Penalidade de prioridade: {route.priority_penalty:.2f}",
-                        f"Penalidade de janela de horário: {route.time_window_penalty:.2f}",
-                        f"Penalidade de capacidade: {route.capacity_penalty:.2f}",
-                        f"Fitness final: {route.fitness:.2f}",
-                        f"Demanda total de suprimentos: {route.total_supply_demand}", "", "Ordem dos atendimentos:",
-                        "-" * 40]
+    lines: list[str] = []
+
+    lines.append("Resumo da rota otimizada")
+    lines.append("=" * 40)
+    lines.append(f"Distância total: {route.total_distance_km:.2f} km")
+    lines.append(f"Penalidade de prioridade: {route.priority_penalty:.2f}")
+    lines.append(f"Penalidade de janela de horário: {route.time_window_penalty:.2f}")
+    lines.append(f"Penalidade de capacidade: {route.capacity_penalty:.2f}")
+    lines.append(f"Fitness final: {route.fitness:.2f}")
+    lines.append(f"Demanda total de suprimentos: {route.total_supply_demand}")
+    lines.append("")
+    lines.append("Ordem dos atendimentos:")
+    lines.append("-" * 40)
 
     for stop in stops:
         point = stop.point
         attendance_label = ATTENDANCE_TYPE_LABELS[point.attendance_type]
 
-        status_parts = []
+        status_parts: list[str] = []
 
         if stop.waiting_minutes > 0:
             status_parts.append(f"Espera {stop.waiting_minutes:.1f} min")
