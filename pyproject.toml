@@ -1,0 +1,20 @@
+[project]
+name = "ia-tech-challenge-2"
+version = "0.1.0"
+description = "Sistema de otimização de rotas para atendimento especializado à mulher usando algoritmo genético e LLM."
+requires-python = ">=3.12"
+dependencies = [
+    "streamlit",
+    "streamlit-folium",
+    "folium",
+    "pandas",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
