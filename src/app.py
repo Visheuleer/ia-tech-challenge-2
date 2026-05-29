@@ -13,8 +13,12 @@ from womens_health_route_optimizer.ui import (
     build_route_dataframe,
     format_number_br,
     load_css,
+    load_experiments_results,
     render_capacity_warning,
     render_delay_feedback,
+    render_experiments_charts,
+    render_experiments_summary,
+    render_experiments_table,
     render_legend,
     render_llm_output,
     render_metric_card,
@@ -190,11 +194,12 @@ route_df = build_route_dataframe(
     app_settings=active_settings,
 )
 
-tab_table, tab_summary, tab_fitness, tab_llm = st.tabs(
+tab_table, tab_summary, tab_fitness, tab_experiments, tab_llm = st.tabs(
     [
         "Tabela da rota",
         "Resumo textual",
         "Evolução do fitness",
+        "Experimentos",
         "Relatórios com LLM",
     ]
 )
@@ -233,6 +238,30 @@ with tab_fitness:
         y="Fitness",
         use_container_width=True,
     )
+
+with tab_experiments:
+    st.markdown("### Comparação de experimentos do algoritmo genético")
+
+    experiments_df = load_experiments_results()
+
+    if experiments_df is None:
+        st.warning(
+            "Nenhum resultado de experimento foi encontrado. "
+            "Execute primeiro o script abaixo na raiz do projeto:"
+        )
+
+        st.code(
+            "python experiments/run_experiments.py",
+            language="bash",
+        )
+    else:
+        render_experiments_summary(experiments_df)
+
+        st.markdown("### Tabela comparativa")
+        render_experiments_table(experiments_df)
+
+        st.markdown("### Gráficos comparativos")
+        render_experiments_charts(experiments_df)
 
 with tab_llm:
     st.markdown("### Geração de relatórios com LLM")

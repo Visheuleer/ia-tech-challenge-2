@@ -192,3 +192,119 @@ def render_llm_output(title: str, content: str | None) -> None:
         "</div>",
         unsafe_allow_html=True,
     )
+
+
+def load_experiments_results(file_path: Path = Path("experiments/outputs/experiments_results.csv")) -> pd.DataFrame | None:
+    if not file_path.exists():
+        return None
+
+    return pd.read_csv(file_path)
+
+
+def render_experiments_table(experiments_df: pd.DataFrame) -> None:
+
+    st.dataframe(
+        experiments_df,
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            "experiment": st.column_config.TextColumn("Experimento", width="medium"),
+            "population_size": st.column_config.NumberColumn("População", width="small"),
+            "generations": st.column_config.NumberColumn("Gerações", width="small"),
+            "mutation_probability": st.column_config.NumberColumn(
+                "Mutação",
+                format="%.2f",
+                width="small",
+            ),
+            "random_seed": st.column_config.TextColumn("Seed", width="small"),
+            "elapsed_seconds": st.column_config.NumberColumn(
+                "Tempo (s)",
+                format="%.4f",
+                width="small",
+            ),
+            "best_fitness": st.column_config.NumberColumn(
+                "Fitness",
+                format="%.2f",
+                width="medium",
+            ),
+            "total_distance_km": st.column_config.NumberColumn(
+                "Distância (km)",
+                format="%.2f",
+                width="small",
+            ),
+            "priority_penalty": st.column_config.NumberColumn(
+                "Penalidade prioridade",
+                format="%.2f",
+                width="medium",
+            ),
+            "time_window_penalty": st.column_config.NumberColumn(
+                "Penalidade janela",
+                format="%.2f",
+                width="medium",
+            ),
+            "capacity_penalty": st.column_config.NumberColumn(
+                "Penalidade capacidade",
+                format="%.2f",
+                width="medium",
+            ),
+            "total_supply_demand": st.column_config.NumberColumn(
+                "Demanda",
+                width="small",
+            ),
+            "first_stop_id": st.column_config.TextColumn("Primeira parada", width="small"),
+            "first_stop_type": st.column_config.TextColumn("Tipo inicial", width="medium"),
+        },
+    )
+
+
+def render_experiments_summary(experiments_df: pd.DataFrame) -> None:
+
+    best_fitness_row = experiments_df.loc[experiments_df["best_fitness"].idxmin()]
+    best_distance_row = experiments_df.loc[experiments_df["total_distance_km"].idxmin()]
+    fastest_row = experiments_df.loc[experiments_df["elapsed_seconds"].idxmin()]
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        render_metric_card(
+            "Melhor fitness",
+            format_number_br(float(best_fitness_row["best_fitness"])),
+            f"Experimento: {best_fitness_row['experiment']}",
+        )
+
+    with col2:
+        render_metric_card(
+            "Menor distância",
+            f"{best_distance_row['total_distance_km']:.2f} km",
+            f"Experimento: {best_distance_row['experiment']}",
+        )
+
+    with col3:
+        render_metric_card(
+            "Menor tempo",
+            f"{fastest_row['elapsed_seconds']:.4f}s",
+            f"Experimento: {fastest_row['experiment']}",
+        )
+
+
+def render_experiments_charts(experiments_df: pd.DataFrame) -> None:
+
+    chart_df = experiments_df.set_index("experiment")
+
+    st.markdown("#### Fitness por experimento")
+    st.bar_chart(
+        chart_df[["best_fitness"]],
+        use_container_width=True,
+    )
+
+    st.markdown("#### Distância total por experimento")
+    st.bar_chart(
+        chart_df[["total_distance_km"]],
+        use_container_width=True,
+    )
+
+    st.markdown("#### Tempo de execução por experimento")
+    st.bar_chart(
+        chart_df[["elapsed_seconds"]],
+        use_container_width=True,
+    )
