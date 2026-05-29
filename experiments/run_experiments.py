@@ -70,9 +70,9 @@ def run_experiment(experiment_config: dict) -> dict:
         priority_penalty_weight=1000.0,
         time_window_penalty_weight=500.0,
         capacity_penalty_weight=2000.0,
-        llm_provider="mock",
-        ollama_base_url="http://localhost:11434",
-        ollama_model="llama3.2:3b",
+        ollama_base_url="https://ollama.com",
+        ollama_model="gpt-oss:20b",
+        ollama_api_key=None,
         llm_temperature=0.2,
     )
 

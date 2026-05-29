@@ -267,8 +267,9 @@ with tab_llm:
     st.markdown("### Geração de relatórios com LLM")
 
     st.info(
-        "Use o modo mock para demonstração sem dependências externas. "
-        "Use o modo Ollama para gerar respostas com um modelo open-source local."
+        "A geração dos relatórios utiliza a API do Ollama. "
+        "Configure a URL, o modelo e a API key na sidebar antes de gerar as respostas. "
+        "A API key também pode ser definida pela variável de ambiente OLLAMA_API_KEY."
     )
 
     report_generator = RouteReportGenerator(app_settings=active_settings)

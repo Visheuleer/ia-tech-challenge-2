@@ -25,9 +25,9 @@ class Settings:
     time_window_penalty_weight: float = 500.0
     capacity_penalty_weight: float = 2000.0
 
-    llm_provider: str = "mock"
-    ollama_base_url: str = "http://localhost:11434"
-    ollama_model: str = "llama3.2:3b"
+    ollama_base_url: str = "https://ollama.com"
+    ollama_model: str = "gpt-oss:20b"
+    ollama_api_key: str | None = None
     llm_temperature: float = 0.2
 
 

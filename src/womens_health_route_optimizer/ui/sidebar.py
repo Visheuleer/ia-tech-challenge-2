@@ -80,15 +80,21 @@ def render_sidebar() -> Settings:
 
     st.sidebar.markdown("### LLM")
 
-    llm_provider = st.sidebar.selectbox(
-        "Provedor",
-        options=["mock", "ollama"],
-        index=0,
+    ollama_base_url = st.sidebar.text_input(
+        "URL do Ollama",
+        value=settings.ollama_base_url,
     )
 
     ollama_model = st.sidebar.text_input(
         "Modelo Ollama",
         value=settings.ollama_model,
+    )
+
+    ollama_api_key = st.sidebar.text_input(
+        "API key Ollama",
+        value="",
+        type="password",
+        help="Opcional se a variável OLLAMA_API_KEY já estiver configurada no ambiente.",
     )
 
     llm_temperature = st.sidebar.slider(
@@ -111,9 +117,9 @@ def render_sidebar() -> Settings:
         priority_penalty_weight=priority_penalty_weight,
         time_window_penalty_weight=time_window_penalty_weight,
         capacity_penalty_weight=capacity_penalty_weight,
-        llm_provider=llm_provider,
         ollama_base_url=settings.ollama_base_url,
         ollama_model=ollama_model,
+        ollama_api_key=ollama_api_key or None,
         llm_temperature=llm_temperature,
     )
 
