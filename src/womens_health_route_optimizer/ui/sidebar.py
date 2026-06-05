@@ -3,109 +3,174 @@ import streamlit as st
 from womens_health_route_optimizer.config import Settings, settings
 
 
-def render_sidebar() -> Settings:
-
+def render_sidebar() -> tuple[Settings, bool]:
     st.sidebar.title("Parâmetros")
 
-    st.sidebar.markdown("### Algoritmo genético")
-
-    population_size = st.sidebar.slider(
-        "Tamanho da população",
-        min_value=20,
-        max_value=300,
-        value=settings.population_size,
-        step=10,
+    run_optimization = st.sidebar.button(
+        "Executar otimização",
+        type="primary",
+        use_container_width=True,
     )
 
-    generations = st.sidebar.slider(
-        "Número de gerações",
-        min_value=20,
-        max_value=500,
-        value=settings.generations,
-        step=20,
+    st.sidebar.caption(
+        "Ajuste os parâmetros abaixo e execute novamente para recalcular a rota."
     )
 
-    mutation_probability = st.sidebar.slider(
-        "Probabilidade de mutação",
-        min_value=0.0,
-        max_value=1.0,
-        value=settings.mutation_probability,
-        step=0.05,
-    )
+    with st.sidebar.expander(
+        "Algoritmo genético",
+        expanded=False,
+    ):
+        population_size = st.slider(
+            "Tamanho da população",
+            min_value=20,
+            max_value=300,
+            value=settings.population_size,
+            step=10,
+        )
 
-    random_seed = st.sidebar.number_input(
-        "Seed aleatória",
-        min_value=0,
-        value=settings.random_seed or 0,
-        step=1,
-    )
+        generations = st.slider(
+            "Número de gerações",
+            min_value=20,
+            max_value=500,
+            value=settings.generations,
+            step=20,
+        )
 
-    use_random_seed = st.sidebar.checkbox(
-        "Usar seed fixa",
-        value=settings.random_seed is not None,
-    )
+        mutation_probability = st.slider(
+            "Probabilidade de mutação",
+            min_value=0.0,
+            max_value=1.0,
+            value=settings.mutation_probability,
+            step=0.05,
+        )
 
-    st.sidebar.markdown("### Veículo")
+        use_random_seed = st.checkbox(
+            "Usar seed fixa",
+            value=settings.random_seed is not None,
+            help=(
+                "Permite reproduzir os mesmos resultados quando os demais "
+                "parâmetros permanecem iguais."
+            ),
+        )
 
-    vehicle_capacity = st.sidebar.slider(
-        "Capacidade máxima de suprimentos",
-        min_value=10,
-        max_value=60,
-        value=settings.vehicle_capacity,
-        step=5,
-    )
+        random_seed = st.number_input(
+            "Seed aleatória",
+            min_value=0,
+            value=settings.random_seed or 0,
+            step=1,
+            disabled=not use_random_seed,
+        )
 
-    st.sidebar.markdown("### Penalidades")
+    with st.sidebar.expander(
+        "Operação da rota",
+        expanded=False,
+    ):
+        vehicle_capacity = st.number_input(
+            "Capacidade máxima de suprimentos",
+            min_value=1,
+            max_value=100,
+            value=settings.vehicle_capacity,
+            step=5,
+        )
 
-    priority_penalty_weight = st.sidebar.number_input(
-        "Peso da prioridade",
-        min_value=0.0,
-        value=settings.priority_penalty_weight,
-        step=100.0,
-    )
+        max_hormonal_transport_minutes = st.number_input(
+            "Prazo para medicamentos hormonais",
+            min_value=30,
+            max_value=720,
+            value=settings.max_hormonal_transport_minutes,
+            step=30,
+            help=(
+                "Tempo máximo, em minutos, entre a saída da central "
+                "e a entrega do medicamento."
+            ),
+        )
 
-    time_window_penalty_weight = st.sidebar.number_input(
-        "Peso da janela de horário",
-        min_value=0.0,
-        value=settings.time_window_penalty_weight,
-        step=50.0,
-    )
+        max_route_duration_minutes = st.number_input(
+            "Duração máxima da rota",
+            min_value=60,
+            max_value=1440,
+            value=settings.max_route_duration_minutes,
+            step=30,
+            help="Inclui deslocamentos, esperas, atendimentos e retorno à central.",
+        )
 
-    capacity_penalty_weight = st.sidebar.number_input(
-        "Peso da capacidade",
-        min_value=0.0,
-        value=settings.capacity_penalty_weight,
-        step=100.0,
-    )
+    with st.sidebar.expander(
+        "Pesos da função fitness",
+        expanded=False,
+    ):
+        st.caption(
+            "Valores maiores tornam a respectiva restrição mais importante "
+            "durante a otimização."
+        )
 
-    st.sidebar.markdown("### LLM")
+        priority_penalty_weight = st.number_input(
+            "Prioridade dos atendimentos",
+            min_value=0.0,
+            value=settings.priority_penalty_weight,
+            step=100.0,
+        )
 
-    ollama_base_url = st.sidebar.text_input(
-        "URL do Ollama",
-        value=settings.ollama_base_url,
-    )
+        time_window_penalty_weight = st.number_input(
+            "Janelas de horário",
+            min_value=0.0,
+            value=settings.time_window_penalty_weight,
+            step=50.0,
+        )
 
-    ollama_model = st.sidebar.text_input(
-        "Modelo Ollama",
-        value=settings.ollama_model,
-    )
+        capacity_penalty_weight = st.number_input(
+            "Capacidade do veículo",
+            min_value=0.0,
+            value=settings.capacity_penalty_weight,
+            step=100.0,
+        )
 
-    ollama_api_key = st.sidebar.text_input(
-        "API key Ollama",
-        value="",
-        type="password",
-        help="Opcional se a variável OLLAMA_API_KEY já estiver configurada no ambiente.",
-    )
+        hormonal_transport_penalty_weight = st.number_input(
+            "Prazo dos medicamentos hormonais",
+            min_value=0.0,
+            value=settings.hormonal_transport_penalty_weight,
+            step=50.0,
+        )
 
-    llm_temperature = st.sidebar.slider(
-        "Temperatura",
-        min_value=0.0,
-        max_value=1.0,
-        value=settings.llm_temperature,
-        step=0.1,
-    )
+        route_duration_penalty_weight = st.number_input(
+            "Duração máxima da rota",
+            min_value=0.0,
+            value=settings.route_duration_penalty_weight,
+            step=50.0,
+        )
 
-    return Settings(
+    with st.sidebar.expander(
+        "Integração com LLM",
+        expanded=False,
+    ):
+        ollama_base_url = st.text_input(
+            "URL do Ollama",
+            value=settings.ollama_base_url,
+        )
+
+        ollama_model = st.text_input(
+            "Modelo",
+            value=settings.ollama_model,
+        )
+
+        ollama_api_key = st.text_input(
+            "API key",
+            value="",
+            type="password",
+            help=(
+                "Pode ser deixada vazia quando OLLAMA_API_KEY "
+                "já estiver configurada no ambiente."
+            ),
+        )
+
+        llm_temperature = st.slider(
+            "Temperatura",
+            min_value=0.0,
+            max_value=1.0,
+            value=settings.llm_temperature,
+            step=0.1,
+        )
+
+    run_settings = Settings(
         population_size=population_size,
         generations=generations,
         mutation_probability=mutation_probability,
@@ -117,22 +182,22 @@ def render_sidebar() -> Settings:
         priority_penalty_weight=priority_penalty_weight,
         time_window_penalty_weight=time_window_penalty_weight,
         capacity_penalty_weight=capacity_penalty_weight,
-        ollama_base_url=settings.ollama_base_url,
+        max_hormonal_transport_minutes=max_hormonal_transport_minutes,
+        hormonal_transport_penalty_weight=(
+            hormonal_transport_penalty_weight
+        ),
+        max_route_duration_minutes=max_route_duration_minutes,
+        route_duration_penalty_weight=route_duration_penalty_weight,
+        ollama_base_url=ollama_base_url,
         ollama_model=ollama_model,
         ollama_api_key=ollama_api_key or None,
         llm_temperature=llm_temperature,
     )
 
-
-def render_run_button() -> bool:
-    return st.sidebar.button(
-        "Executar otimização",
-        type="primary",
-        use_container_width=True,
-    )
+    return run_settings, run_optimization
 
 
 def render_settings_changed_warning() -> None:
     st.sidebar.warning(
-        "Parâmetros alterados. Clique em Executar otimização para atualizar a rota."
+        "Os parâmetros foram alterados. Execute novamente para atualizar a rota."
     )

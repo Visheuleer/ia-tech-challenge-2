@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from womens_health_route_optimizer.config import Settings, settings
 from womens_health_route_optimizer.domain import (
     AttendancePoint,
+    AttendanceType,
     DistributionCenter,
     Route,
     Vehicle,
@@ -11,11 +12,7 @@ from womens_health_route_optimizer.utils import (
     calculate_distance_km,
     estimate_travel_time_minutes,
 )
-
-
-def parse_route_start_time(value: str) -> datetime:
-    hour, minute = value.split(":")
-    return datetime(2026, 1, 1, int(hour), int(minute))
+from womens_health_route_optimizer.optimization.simulation import simulate_route
 
 
 def calculate_total_distance_km(
@@ -75,47 +72,79 @@ def calculate_time_window_penalty(
     distribution_center: DistributionCenter,
     app_settings: Settings = settings,
 ) -> float:
-    if not route_points:
-        return 0.0
 
-    penalty_minutes = 0.0
-    current_time = parse_route_start_time(app_settings.route_start_time)
-    previous_coordinate = distribution_center.coordinate
+    simulation = simulate_route(
+        route_points=route_points,
+        distribution_center=distribution_center,
+        app_settings=app_settings,
+    )
 
-    for point in route_points:
-        distance_km = calculate_distance_km(
-            previous_coordinate,
-            point.coordinate,
-        )
+    total_delay_minutes = sum(
+        stop.delay_minutes
+        for stop in simulation.stops
+    )
 
-        travel_minutes = estimate_travel_time_minutes(
-            distance_km,
-            app_settings.average_vehicle_speed_kmh,
-        )
+    return (
+        total_delay_minutes
+        * app_settings.time_window_penalty_weight
+    )
 
-        current_time += timedelta(minutes=travel_minutes)
 
-        window_start = datetime.combine(
-            current_time.date(),
-            point.time_window_start,
-        )
+def calculate_hormonal_transport_penalty(
+    route_points: list[AttendancePoint],
+    distribution_center: DistributionCenter,
+    app_settings: Settings = settings,
+) -> float:
 
-        window_end = datetime.combine(
-            current_time.date(),
-            point.time_window_end,
-        )
+    simulation = simulate_route(
+        route_points=route_points,
+        distribution_center=distribution_center,
+        app_settings=app_settings,
+    )
 
-        if current_time < window_start:
-            current_time = window_start
+    excess_minutes = 0.0
 
-        if current_time > window_end:
-            delay_minutes = (current_time - window_end).total_seconds() / 60
-            penalty_minutes += delay_minutes
+    for stop in simulation.stops:
+        if (
+            stop.point.attendance_type
+            is AttendanceType.HORMONAL_MEDICATION
+        ):
+            excess_minutes += max(
+                0.0,
+                stop.elapsed_minutes_from_departure
+                - app_settings.max_hormonal_transport_minutes,
+            )
 
-        current_time += timedelta(minutes=point.service_time_minutes)
-        previous_coordinate = point.coordinate
+    return (
+        excess_minutes
+        * app_settings.hormonal_transport_penalty_weight
+    )
 
-    return penalty_minutes * app_settings.time_window_penalty_weight
+
+def calculate_route_duration_penalty(
+    route_points: list[AttendancePoint],
+    distribution_center: DistributionCenter,
+    app_settings: Settings = settings,
+) -> tuple[float, float]:
+
+    simulation = simulate_route(
+        route_points=route_points,
+        distribution_center=distribution_center,
+        app_settings=app_settings,
+    )
+
+    excess_minutes = max(
+        0.0,
+        simulation.total_duration_minutes
+        - app_settings.max_route_duration_minutes,
+    )
+
+    penalty = (
+        excess_minutes
+        * app_settings.route_duration_penalty_weight
+    )
+
+    return penalty, simulation.total_duration_minutes
 
 
 def evaluate_route(
@@ -124,26 +153,43 @@ def evaluate_route(
     vehicle: Vehicle,
     app_settings: Settings = settings,
 ) -> Route:
+
     total_distance = calculate_total_distance_km(
-        route_points,
-        distribution_center,
+        route_points=route_points,
+        distribution_center=distribution_center,
     )
 
     priority_penalty = calculate_priority_penalty(
-        route_points,
-        app_settings,
+        route_points=route_points,
+        app_settings=app_settings,
     )
 
     time_window_penalty = calculate_time_window_penalty(
-        route_points,
-        distribution_center,
-        app_settings,
+        route_points=route_points,
+        distribution_center=distribution_center,
+        app_settings=app_settings,
     )
 
     capacity_penalty = calculate_capacity_penalty(
-        route_points,
-        vehicle,
-        app_settings,
+        route_points=route_points,
+        vehicle=vehicle,
+        app_settings=app_settings,
+    )
+
+    hormonal_transport_penalty = (
+        calculate_hormonal_transport_penalty(
+            route_points=route_points,
+            distribution_center=distribution_center,
+            app_settings=app_settings,
+        )
+    )
+
+    route_duration_penalty, total_duration_minutes = (
+        calculate_route_duration_penalty(
+            route_points=route_points,
+            distribution_center=distribution_center,
+            app_settings=app_settings,
+        )
     )
 
     fitness = (
@@ -151,6 +197,8 @@ def evaluate_route(
         + priority_penalty
         + time_window_penalty
         + capacity_penalty
+        + hormonal_transport_penalty
+        + route_duration_penalty
     )
 
     return Route(
@@ -159,5 +207,8 @@ def evaluate_route(
         priority_penalty=priority_penalty,
         time_window_penalty=time_window_penalty,
         capacity_penalty=capacity_penalty,
+        hormonal_transport_penalty=hormonal_transport_penalty,
+        route_duration_penalty=route_duration_penalty,
+        total_duration_minutes=total_duration_minutes,
         fitness=fitness,
     )

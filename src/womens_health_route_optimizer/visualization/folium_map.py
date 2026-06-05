@@ -22,15 +22,6 @@ def create_route_map(
     distribution_center: DistributionCenter,
     app_settings: Settings = settings,
 ) -> folium.Map:
-    """
-    Cria um mapa Folium com a rota otimizada.
-
-    O mapa exibe:
-    - central de distribuição;
-    - pontos de atendimento coloridos por tipo;
-    - linha da rota na ordem otimizada;
-    - popups com informações operacionais.
-    """
 
     center_location = [
         distribution_center.coordinate.latitude,
@@ -86,6 +77,21 @@ def create_route_map(
 
         status = " | ".join(status_parts)
 
+        hormonal_status = "Não se aplica"
+
+        if point.attendance_type.value == "hormonal_medication":
+            excess = max(
+                0.0,
+                stop.elapsed_minutes_from_departure
+                - app_settings.max_hormonal_transport_minutes,
+            )
+
+            hormonal_status = (
+                f"Prazo excedido em {excess:.1f} min"
+                if excess > 0
+                else "Dentro do prazo"
+            )
+
         popup_html = f"""
         <b>{stop.sequence:02d}. {point.name}</b><br>
         <b>Tipo:</b> {attendance_label}<br>
@@ -93,9 +99,11 @@ def create_route_map(
         <b>Demanda:</b> {point.supply_demand}<br>
         <b>Chegada:</b> {stop.estimated_arrival_time.strftime("%H:%M")}<br>
         <b>Início:</b> {stop.service_start_time.strftime("%H:%M")}<br>
+        <b>Tempo desde a saída:</b>{stop.elapsed_minutes_from_departure:.1f} min<br>
         <b>Janela:</b> {stop.time_window_start.strftime("%H:%M")} - {stop.time_window_end.strftime("%H:%M")}<br>
         <b>Trecho:</b> {stop.leg_distance_km:.2f} km<br>
         <b>Status:</b> {status}<br>
+        <b>Status hormonal:</b> {hormonal_status}<br>
         <b>Observação:</b> {point.notes}
         """
 

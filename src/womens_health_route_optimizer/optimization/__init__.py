@@ -3,6 +3,8 @@ from womens_health_route_optimizer.optimization.fitness import (
     calculate_priority_penalty,
     calculate_time_window_penalty,
     calculate_total_distance_km,
+    calculate_hormonal_transport_penalty,
+    calculate_route_duration_penalty,
     evaluate_route,
 )
 from womens_health_route_optimizer.optimization.operators import (
@@ -13,13 +15,18 @@ from womens_health_route_optimizer.optimization.operators import (
     sort_population_by_fitness,
 )
 from womens_health_route_optimizer.optimization.optimizer import RouteOptimizer
-from womens_health_route_optimizer.optimization.simulation import simulate_route_stops
+from womens_health_route_optimizer.optimization.simulation import (
+    simulate_route,
+    simulate_route_stops,
+)
 
 __all__ = [
     "calculate_total_distance_km",
     "calculate_priority_penalty",
     "calculate_time_window_penalty",
     "calculate_capacity_penalty",
+    "calculate_hormonal_transport_penalty",
+    "calculate_route_duration_penalty",
     "evaluate_route",
     "generate_initial_population",
     "sort_population_by_fitness",
@@ -27,5 +34,6 @@ __all__ = [
     "order_crossover",
     "mutate",
     "RouteOptimizer",
+    "simulate_route",
     "simulate_route_stops",
 ]

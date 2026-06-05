@@ -14,6 +14,9 @@ Transforme a rota otimizada abaixo em um ROTEIRO DETALHADO DE VISITAS para a equ
   - janela de horário;
   - demanda de suprimentos;
   - observação operacional.
+- Para medicamentos hormonais, informe se a entrega está dentro do prazo máximo de transporte.
+- Ao final, informe o horário previsto de retorno à central.
+- Destaque se a duração total da rota ultrapassa o limite operacional.
 - Destaque atrasos, se existirem.
 - Seja claro, objetivo e prático.
 - Não invente dados que não estejam no contexto.

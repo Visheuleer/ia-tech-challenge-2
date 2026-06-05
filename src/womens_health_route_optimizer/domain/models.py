@@ -46,6 +46,9 @@ class Route:
     priority_penalty: float = 0.0
     time_window_penalty: float = 0.0
     capacity_penalty: float = 0.0
+    hormonal_transport_penalty: float = 0.0
+    route_duration_penalty: float = 0.0
+    total_duration_minutes: float = 0.0
     fitness: float = 0.0
 
     @property
@@ -64,6 +67,14 @@ class RouteStop:
     time_window_end: time
     waiting_minutes: float
     delay_minutes: float
+    elapsed_minutes_from_departure: float
+
+@dataclass(frozen=True)
+class RouteSimulation:
+    stops: list[RouteStop]
+    total_duration_minutes: float
+    return_time: time
+    return_leg_distance_km: float
 
 
 @dataclass

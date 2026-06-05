@@ -1,6 +1,6 @@
-experiment,population_size,generations,mutation_probability,random_seed,elapsed_seconds,best_fitness,total_distance_km,priority_penalty,time_window_penalty,capacity_penalty,total_supply_demand,first_stop_id,first_stop_type
-baseline_small,50,100,0.1,42,1.4484,580834.9854,112.8318,367000.0,173722.1536,40000.0,40,P001,obstetric_emergency
-baseline_medium,100,200,0.2,42,3.069,529248.5268,105.5306,369000.0,120142.9962,40000.0,40,P001,obstetric_emergency
-large_population,200,300,0.2,42,10.9259,526925.246,105.0279,369000.0,117820.2181,40000.0,40,P001,obstetric_emergency
-high_mutation,100,200,0.4,42,3.3262,545768.1239,98.7303,369000.0,136669.3936,40000.0,40,P001,obstetric_emergency
-no_fixed_seed,100,200,0.2,,3.4833,524445.9064,104.4495,369000.0,115341.4569,40000.0,40,P001,obstetric_emergency
+experiment,population_size,generations,mutation_probability,random_seed,elapsed_seconds,best_fitness,total_distance_km,total_duration_minutes,priority_penalty,time_window_penalty,capacity_penalty,hormonal_transport_penalty,route_duration_penalty,total_supply_demand,first_stop_id,first_stop_type
+baseline_small,50,100,0.1,42,2.5315,710259.8181,98.955,719.6372,403000.0,207342.2565,40000.0,0.0,59818.6066,40,P001,obstetric_emergency
+baseline_medium,100,200,0.2,42,10.6969,636189.09,88.6109,701.9044,413000.0,132148.2694,40000.0,0.0,50952.2097,40,P009,hormonal_medication
+large_population,200,300,0.2,42,34.364,706222.1658,102.7591,726.1584,417000.0,186040.194,40000.0,0.0,63079.2128,40,P009,hormonal_medication
+high_mutation,100,200,0.4,42,10.8965,696603.6468,96.4949,715.4198,415000.0,183797.2739,40000.0,0.0,57709.8781,40,P010,hormonal_medication
+no_fixed_seed,100,200,0.2,,10.8647,660396.3625,88.7121,702.0779,401000.0,115794.1022,40000.0,52474.5959,51038.9523,40,P001,obstetric_emergency

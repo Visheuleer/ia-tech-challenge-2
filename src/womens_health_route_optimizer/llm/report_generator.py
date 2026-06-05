@@ -1,5 +1,8 @@
 from womens_health_route_optimizer.config import Settings, settings
-from womens_health_route_optimizer.domain import DistributionCenter, Route
+from womens_health_route_optimizer.domain import (
+    DistributionCenter,
+    Route,
+)
 from womens_health_route_optimizer.llm.prompts import (
     build_instruction_manual_prompt,
     build_question_prompt,
@@ -10,7 +13,10 @@ from womens_health_route_optimizer.llm.providers import get_llm_provider
 
 class RouteReportGenerator:
 
-    def __init__(self, app_settings: Settings = settings) -> None:
+    def __init__(
+        self,
+        app_settings: Settings = settings,
+    ) -> None:
         self.app_settings = app_settings
         self.provider = get_llm_provider(app_settings)
 
@@ -22,6 +28,7 @@ class RouteReportGenerator:
         prompt = build_instruction_manual_prompt(
             route=route,
             distribution_center=distribution_center,
+            app_settings=self.app_settings,
         )
 
         return self.provider.generate(prompt)
@@ -34,6 +41,7 @@ class RouteReportGenerator:
         prompt = build_visit_plan_prompt(
             route=route,
             distribution_center=distribution_center,
+            app_settings=self.app_settings,
         )
 
         return self.provider.generate(prompt)
@@ -48,6 +56,7 @@ class RouteReportGenerator:
             route=route,
             distribution_center=distribution_center,
             question=question,
+            app_settings=self.app_settings,
         )
 
         return self.provider.generate(prompt)

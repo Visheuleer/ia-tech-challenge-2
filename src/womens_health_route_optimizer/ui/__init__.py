@@ -8,15 +8,16 @@ from womens_health_route_optimizer.ui.components import (
     render_experiments_charts,
     render_experiments_summary,
     render_experiments_table,
+    render_hormonal_transport_feedback,
     render_legend,
     render_llm_output,
     render_metric_card,
     render_page_header,
     render_route_dataframe,
+    render_route_duration_feedback,
     render_section_title,
 )
 from womens_health_route_optimizer.ui.sidebar import (
-    render_run_button,
     render_settings_changed_warning,
     render_sidebar,
 )
@@ -34,10 +35,11 @@ __all__ = [
     "render_llm_output",
     "format_number_br",
     "render_sidebar",
-    "render_run_button",
     "render_settings_changed_warning",
     "load_experiments_results",
     "render_experiments_table",
     "render_experiments_summary",
     "render_experiments_charts",
+    "render_hormonal_transport_feedback",
+    "render_route_duration_feedback",
 ]

@@ -6,6 +6,7 @@ import streamlit as st
 from womens_health_route_optimizer.config import Settings
 from womens_health_route_optimizer.domain import (
     ATTENDANCE_TYPE_LABELS,
+    AttendanceType,
     DistributionCenter,
     Route,
 )
@@ -98,17 +99,41 @@ def build_route_dataframe(
     distribution_center: DistributionCenter,
     app_settings: Settings,
 ) -> pd.DataFrame:
+
     stops = simulate_route_stops(
         route_points=route.ordered_points,
         distribution_center=distribution_center,
         app_settings=app_settings,
     )
 
-    rows = []
+    rows: list[dict] = []
 
     for stop in stops:
         point = stop.point
         attendance_label = ATTENDANCE_TYPE_LABELS[point.attendance_type]
+
+        is_hormonal = (
+            point.attendance_type
+            is AttendanceType.HORMONAL_MEDICATION
+        )
+
+        hormonal_excess_minutes = 0.0
+
+        if is_hormonal:
+            hormonal_excess_minutes = max(
+                0.0,
+                stop.elapsed_minutes_from_departure
+                - app_settings.max_hormonal_transport_minutes,
+            )
+
+        if not is_hormonal:
+            hormonal_status = "Não se aplica"
+        elif hormonal_excess_minutes > 0:
+            hormonal_status = (
+                f"Prazo excedido em {hormonal_excess_minutes:.1f} min"
+            )
+        else:
+            hormonal_status = "Dentro do prazo"
 
         rows.append(
             {
@@ -127,6 +152,11 @@ def build_route_dataframe(
                 "Trecho (km)": round(stop.leg_distance_km, 2),
                 "Espera (min)": round(stop.waiting_minutes, 1),
                 "Atraso (min)": round(stop.delay_minutes, 1),
+                "Tempo desde saída (min)": round(
+                    stop.elapsed_minutes_from_departure,
+                    1,
+                ),
+                "Status hormonal": hormonal_status,
             }
         )
 
@@ -163,6 +193,15 @@ def render_route_dataframe(route_df: pd.DataFrame) -> None:
                 format="%.1f",
                 width="small",
             ),
+            "Tempo desde saída (min)": st.column_config.NumberColumn(
+                "Tempo desde saída (min)",
+                format="%.1f",
+                width="medium",
+            ),
+            "Status hormonal": st.column_config.TextColumn(
+                "Status hormonal",
+                width="medium",
+            ),
         },
     )
 
@@ -177,21 +216,62 @@ def render_delay_feedback(route_df: pd.DataFrame) -> None:
             f"{len(delayed_stops)} parada(s) apresentaram atraso em relação à janela de horário."
         )
 
+def render_hormonal_transport_feedback(
+    route_df: pd.DataFrame,
+) -> None:
+
+    hormonal_rows = route_df[
+        route_df["Status hormonal"] != "Não se aplica"
+    ]
+
+    violated_rows = hormonal_rows[
+        hormonal_rows["Status hormonal"].str.startswith(
+            "Prazo excedido",
+            na=False,
+        )
+    ]
+
+    if hormonal_rows.empty:
+        st.info("A rota não possui entregas de medicamentos hormonais.")
+    elif violated_rows.empty:
+        st.success(
+            "Todas as entregas de medicamentos hormonais "
+            "foram realizadas dentro do prazo máximo."
+        )
+    else:
+        st.warning(
+            f"{len(violated_rows)} entrega(s) de medicamentos hormonais "
+            "ultrapassaram o prazo máximo de transporte."
+        )
+
+
+def render_route_duration_feedback(
+    total_duration_minutes: float,
+    max_duration_minutes: int,
+) -> None:
+
+    if total_duration_minutes <= max_duration_minutes:
+        st.success(
+            "A duração total da rota está dentro do limite operacional."
+        )
+        return
+
+    excess_minutes = total_duration_minutes - max_duration_minutes
+
+    st.warning(
+        "A rota ultrapassou o limite de duração em "
+        f"{excess_minutes:.1f} minutos."
+    )
+
 
 def render_llm_output(title: str, content: str | None) -> None:
     if not content:
         return
 
     st.markdown(f"#### {title}")
-    st.markdown(
-        '<div class="llm-output-box">',
-        unsafe_allow_html=True,
-    )
-    st.markdown(content)
-    st.markdown(
-        "</div>",
-        unsafe_allow_html=True,
-    )
+
+    with st.container(border=True):
+        st.markdown(content)
 
 
 def load_experiments_results(file_path: Path = Path("experiments/outputs/experiments_results.csv")) -> pd.DataFrame | None:
@@ -247,8 +327,23 @@ def render_experiments_table(experiments_df: pd.DataFrame) -> None:
                 format="%.2f",
                 width="medium",
             ),
+            "hormonal_transport_penalty": st.column_config.NumberColumn(
+                "Penalidade hormonal",
+                format="%.2f",
+                width="medium",
+            ),
+            "route_duration_penalty": st.column_config.NumberColumn(
+                "Penalidade duração",
+                format="%.2f",
+                width="medium",
+            ),
             "total_supply_demand": st.column_config.NumberColumn(
                 "Demanda",
+                width="small",
+            ),
+            "total_duration_minutes": st.column_config.NumberColumn(
+                "Duração (min)",
+                format="%.1f",
                 width="small",
             ),
             "first_stop_id": st.column_config.TextColumn("Primeira parada", width="small"),
@@ -308,3 +403,18 @@ def render_experiments_charts(experiments_df: pd.DataFrame) -> None:
         chart_df[["elapsed_seconds"]],
         use_container_width=True,
     )
+
+    st.markdown("#### Duração total por experimento")
+
+    st.bar_chart(
+        chart_df[["total_duration_minutes"]],
+        use_container_width=True,
+    )
+
+    st.markdown("#### Penalidade por duração máxima")
+
+    st.bar_chart(
+        chart_df[["route_duration_penalty"]],
+        use_container_width=True,
+    )
+

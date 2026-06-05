@@ -11,7 +11,7 @@ from womens_health_route_optimizer.domain import Vehicle
 from womens_health_route_optimizer.optimization import RouteOptimizer
 
 
-OUTPUT_DIR = Path("outputs")
+OUTPUT_DIR = Path("experiments/outputs")
 OUTPUT_FILE = OUTPUT_DIR / "experiments_results.csv"
 
 
@@ -70,6 +70,10 @@ def run_experiment(experiment_config: dict) -> dict:
         priority_penalty_weight=1000.0,
         time_window_penalty_weight=500.0,
         capacity_penalty_weight=2000.0,
+        max_hormonal_transport_minutes=240,
+        hormonal_transport_penalty_weight=500.0,
+        max_route_duration_minutes=600,
+        route_duration_penalty_weight=500.0,
         ollama_base_url="https://ollama.com",
         ollama_model="gpt-oss:20b",
         ollama_api_key=None,
@@ -104,12 +108,35 @@ def run_experiment(experiment_config: dict) -> dict:
         "elapsed_seconds": round(elapsed_seconds, 4),
         "best_fitness": round(best_route.fitness, 4),
         "total_distance_km": round(best_route.total_distance_km, 4),
-        "priority_penalty": round(best_route.priority_penalty, 4),
-        "time_window_penalty": round(best_route.time_window_penalty, 4),
-        "capacity_penalty": round(best_route.capacity_penalty, 4),
+        "total_duration_minutes": round(
+            best_route.total_duration_minutes,
+            4,
+        ),
+        "priority_penalty": round(
+            best_route.priority_penalty,
+            4,
+        ),
+        "time_window_penalty": round(
+            best_route.time_window_penalty,
+            4,
+        ),
+        "capacity_penalty": round(
+            best_route.capacity_penalty,
+            4,
+        ),
+        "hormonal_transport_penalty": round(
+            best_route.hormonal_transport_penalty,
+            4,
+        ),
+        "route_duration_penalty": round(
+            best_route.route_duration_penalty,
+            4,
+        ),
         "total_supply_demand": best_route.total_supply_demand,
         "first_stop_id": best_route.ordered_points[0].id,
-        "first_stop_type": best_route.ordered_points[0].attendance_type.value,
+        "first_stop_type": (
+            best_route.ordered_points[0].attendance_type.value
+        ),
     }
 
 
@@ -125,9 +152,12 @@ def save_results(results: list[dict]) -> None:
         "elapsed_seconds",
         "best_fitness",
         "total_distance_km",
+        "total_duration_minutes",
         "priority_penalty",
         "time_window_penalty",
         "capacity_penalty",
+        "hormonal_transport_penalty",
+        "route_duration_penalty",
         "total_supply_demand",
         "first_stop_id",
         "first_stop_type",

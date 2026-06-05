@@ -13,6 +13,9 @@ Gere um MANUAL DE INSTRUÇÕES para a equipe de transporte responsável pela rot
   2. Violência doméstica: discrição, segurança e cuidado na abordagem.
   3. Medicamento hormonal: cuidado com transporte e temperatura controlada.
   4. Pós-parto: acolhimento, pontualidade e atenção ao estado da paciente.
+- Informe se a duração total da rota ultrapassa o limite operacional.
+- Destaque entregas de medicamentos hormonais que ultrapassem o prazo máximo de transporte.
+- Caso a rota exceda sua duração máxima, inclua uma orientação para replanejamento operacional.
 - Não dê diagnóstico médico.
 - Não substitua orientação de profissionais de saúde.
 - Organize a resposta em seções claras.

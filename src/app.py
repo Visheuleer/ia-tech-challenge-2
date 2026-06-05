@@ -8,7 +8,10 @@ from womens_health_route_optimizer.data import (
 )
 from womens_health_route_optimizer.domain import Vehicle
 from womens_health_route_optimizer.llm import RouteReportGenerator
-from womens_health_route_optimizer.optimization import RouteOptimizer
+from womens_health_route_optimizer.optimization import (
+    RouteOptimizer,
+    simulate_route,
+)
 from womens_health_route_optimizer.ui import (
     build_route_dataframe,
     format_number_br,
@@ -19,12 +22,13 @@ from womens_health_route_optimizer.ui import (
     render_experiments_charts,
     render_experiments_summary,
     render_experiments_table,
+    render_hormonal_transport_feedback,
+    render_route_duration_feedback,
     render_legend,
     render_llm_output,
     render_metric_card,
     render_page_header,
     render_route_dataframe,
-    render_run_button,
     render_section_title,
     render_settings_changed_warning,
     render_sidebar,
@@ -76,8 +80,7 @@ center, points = load_data()
 
 render_page_header()
 
-run_settings = render_sidebar()
-run_optimization = render_run_button()
+run_settings, run_optimization = render_sidebar()
 
 settings_changed = (
     st.session_state.last_run_settings is not None
@@ -109,22 +112,29 @@ result = st.session_state.optimization_result
 best_route = result.best_route
 active_settings = st.session_state.last_run_settings or run_settings
 
+route_simulation = simulate_route(
+    route_points=best_route.ordered_points,
+    distribution_center=center,
+    app_settings=active_settings,
+)
+
 render_section_title("Resumo da solução")
 
-metric_col1, metric_col2, metric_col3, metric_col4 = st.columns(4)
+metric_col1, metric_col2, metric_col3 = st.columns(3)
+metric_col4, metric_col5, metric_col6 = st.columns(3)
 
 with metric_col1:
     render_metric_card(
         "Distância total",
         f"{best_route.total_distance_km:.2f} km",
-        "Percurso saindo e retornando à central",
+        "Percurso completo com retorno à central",
     )
 
 with metric_col2:
     render_metric_card(
         "Fitness final",
         format_number_br(best_route.fitness),
-        "Distância + penalidades",
+        "Distância e penalidades",
     )
 
 with metric_col3:
@@ -135,6 +145,23 @@ with metric_col3:
     )
 
 with metric_col4:
+    render_metric_card(
+        "Duração total",
+        f"{best_route.total_duration_minutes:.1f} min",
+        f"Limite: {active_settings.max_route_duration_minutes} min",
+    )
+
+with metric_col5:
+    render_metric_card(
+        "Retorno à central",
+        route_simulation.return_time.strftime("%H:%M"),
+        (
+            f"Último trecho: "
+            f"{route_simulation.return_leg_distance_km:.2f} km"
+        ),
+    )
+
+with metric_col6:
     seed_text = (
         f"Seed: {active_settings.random_seed}"
         if active_settings.random_seed is not None
@@ -147,9 +174,11 @@ with metric_col4:
         f"População: {active_settings.population_size} | {seed_text}",
     )
 
+
 render_section_title("Penalidades aplicadas")
 
 penalty_col1, penalty_col2, penalty_col3 = st.columns(3)
+penalty_col4, penalty_col5 = st.columns(2)
 
 with penalty_col1:
     st.metric(
@@ -168,6 +197,27 @@ with penalty_col3:
         "Capacidade",
         format_number_br(best_route.capacity_penalty),
     )
+
+with penalty_col4:
+    st.metric(
+        "Prazo hormonal",
+        format_number_br(
+            best_route.hormonal_transport_penalty
+        ),
+    )
+
+with penalty_col5:
+    st.metric(
+        "Duração máxima",
+        format_number_br(
+            best_route.route_duration_penalty
+        ),
+    )
+
+render_route_duration_feedback(
+    total_duration_minutes=best_route.total_duration_minutes,
+    max_duration_minutes=active_settings.max_route_duration_minutes,
+)
 
 if best_route.capacity_penalty > 0:
     render_capacity_warning()
@@ -209,6 +259,7 @@ with tab_table:
 
     render_route_dataframe(route_df)
     render_delay_feedback(route_df)
+    render_hormonal_transport_feedback(route_df)
 
 with tab_summary:
     st.markdown("### Resumo textual da rota")

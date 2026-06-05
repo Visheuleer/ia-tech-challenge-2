@@ -25,6 +25,12 @@ class Settings:
     time_window_penalty_weight: float = 500.0
     capacity_penalty_weight: float = 2000.0
 
+    max_hormonal_transport_minutes: int = 240
+    hormonal_transport_penalty_weight: float = 500.0
+
+    max_route_duration_minutes: int = 600
+    route_duration_penalty_weight: float = 500.0
+
     ollama_base_url: str = "https://ollama.com"
     ollama_model: str = "gpt-oss:20b"
     ollama_api_key: str | None = None
