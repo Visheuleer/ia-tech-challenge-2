@@ -9,6 +9,7 @@ dependencies = [
     "folium",
     "pandas",
     "numpy",
+    "ollama",
 ]
 
 [project.optional-dependencies]

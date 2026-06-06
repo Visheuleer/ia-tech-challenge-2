@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta
-
 from womens_health_route_optimizer.config import Settings, settings
 from womens_health_route_optimizer.domain import (
     AttendancePoint,
@@ -10,10 +8,16 @@ from womens_health_route_optimizer.domain import (
 )
 from womens_health_route_optimizer.utils import (
     calculate_distance_km,
-    estimate_travel_time_minutes,
 )
 from womens_health_route_optimizer.optimization.simulation import simulate_route
 
+
+PRIORITY_DELAY_MULTIPLIERS = {
+    1: 10.0,
+    2: 5.0,
+    3: 2.0,
+    4: 1.0,
+}
 
 def calculate_total_distance_km(
     route_points: list[AttendancePoint],
@@ -79,16 +83,16 @@ def calculate_time_window_penalty(
         app_settings=app_settings,
     )
 
-    total_delay_minutes = sum(
+    weighted_delay_minutes = sum(
         stop.delay_minutes
+        * PRIORITY_DELAY_MULTIPLIERS[stop.point.priority]
         for stop in simulation.stops
     )
 
     return (
-        total_delay_minutes
+        weighted_delay_minutes
         * app_settings.time_window_penalty_weight
     )
-
 
 def calculate_hormonal_transport_penalty(
     route_points: list[AttendancePoint],

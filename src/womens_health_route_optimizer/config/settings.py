@@ -26,7 +26,7 @@ class Settings:
     capacity_penalty_weight: float = 2000.0
 
     max_hormonal_transport_minutes: int = 240
-    hormonal_transport_penalty_weight: float = 500.0
+    hormonal_transport_penalty_weight: float = 700.0
 
     max_route_duration_minutes: int = 600
     route_duration_penalty_weight: float = 500.0
