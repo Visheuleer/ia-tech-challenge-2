@@ -3,15 +3,6 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 
-from womens_health_route_optimizer.config import Settings
-from womens_health_route_optimizer.domain import (
-    ATTENDANCE_TYPE_LABELS,
-    AttendanceType,
-    DistributionCenter,
-    Route,
-)
-from womens_health_route_optimizer.optimization import simulate_route_stops
-
 
 STYLE_PATH = Path(__file__).resolve().parent / "styles.css"
 
@@ -38,8 +29,7 @@ def render_page_header() -> None:
     st.markdown(
         """
         <div class="subtitle">
-            Sistema experimental de roteirização com algoritmo genético, considerando prioridade de atendimento,
-            janelas de horário e capacidade máxima de suprimentos do veículo.
+            Sistema experimental de roteirização com algoritmo genético, considerando frota heterogênea, prioridades, janelas de horário, capacidade por veículo, prazo hormonal e compatibilidade veículo/carga.
         </div>
         """,
         unsafe_allow_html=True,
@@ -66,201 +56,15 @@ def render_metric_card(label: str, value: str, helper: str = "") -> None:
     )
 
 
-def render_legend() -> None:
-    st.markdown(
-        """
-        <div class="legend-box">
-            <span class="legend-item"><span class="dot dot-black"></span>Central de distribuição</span>
-            <span class="legend-item"><span class="dot dot-red"></span>Emergência obstétrica</span>
-            <span class="legend-item"><span class="dot dot-purple"></span>Violência doméstica</span>
-            <span class="legend-item"><span class="dot dot-blue"></span>Medicamento hormonal</span>
-            <span class="legend-item"><span class="dot dot-green"></span>Atendimento pós-parto</span>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
 def render_capacity_warning() -> None:
     st.markdown(
         """
         <div class="info-box">
-            A rota excede a capacidade configurada do veículo. Nesta versão inicial, a violação é tratada
-            como penalidade no fitness. Em evoluções futuras, essa restrição pode ser tratada com múltiplos
-            veículos ou divisão automática de rotas.
+            Uma ou mais rotas excederam a capacidade do veículo correspondente.
+            A violação foi incorporada como penalidade no fitness da solução.
         </div>
         """,
         unsafe_allow_html=True,
-    )
-
-
-def build_route_dataframe(
-    route: Route,
-    distribution_center: DistributionCenter,
-    app_settings: Settings,
-) -> pd.DataFrame:
-
-    stops = simulate_route_stops(
-        route_points=route.ordered_points,
-        distribution_center=distribution_center,
-        app_settings=app_settings,
-    )
-
-    rows: list[dict] = []
-
-    for stop in stops:
-        point = stop.point
-        attendance_label = ATTENDANCE_TYPE_LABELS[point.attendance_type]
-
-        is_hormonal = (
-            point.attendance_type
-            is AttendanceType.HORMONAL_MEDICATION
-        )
-
-        hormonal_excess_minutes = 0.0
-
-        if is_hormonal:
-            hormonal_excess_minutes = max(
-                0.0,
-                stop.elapsed_minutes_from_departure
-                - app_settings.max_hormonal_transport_minutes,
-            )
-
-        if not is_hormonal:
-            hormonal_status = "Não se aplica"
-        elif hormonal_excess_minutes > 0:
-            hormonal_status = (
-                f"Prazo excedido em {hormonal_excess_minutes:.1f} min"
-            )
-        else:
-            hormonal_status = "Dentro do prazo"
-
-        rows.append(
-            {
-                "Ordem": stop.sequence,
-                "ID": point.id,
-                "Local": point.name,
-                "Tipo": attendance_label,
-                "Prioridade": point.priority,
-                "Demanda": point.supply_demand,
-                "Chegada": stop.estimated_arrival_time.strftime("%H:%M"),
-                "Início": stop.service_start_time.strftime("%H:%M"),
-                "Janela": (
-                    f"{stop.time_window_start.strftime('%H:%M')} - "
-                    f"{stop.time_window_end.strftime('%H:%M')}"
-                ),
-                "Trecho (km)": round(stop.leg_distance_km, 2),
-                "Espera (min)": round(stop.waiting_minutes, 1),
-                "Atraso (min)": round(stop.delay_minutes, 1),
-                "Tempo desde saída (min)": round(
-                    stop.elapsed_minutes_from_departure,
-                    1,
-                ),
-                "Status hormonal": hormonal_status,
-            }
-        )
-
-    return pd.DataFrame(rows)
-
-
-def render_route_dataframe(route_df: pd.DataFrame) -> None:
-    st.dataframe(
-        route_df,
-        use_container_width=True,
-        hide_index=True,
-        column_config={
-            "Ordem": st.column_config.NumberColumn("Ordem", width="small"),
-            "ID": st.column_config.TextColumn("ID", width="small"),
-            "Local": st.column_config.TextColumn("Local", width="large"),
-            "Tipo": st.column_config.TextColumn("Tipo", width="medium"),
-            "Prioridade": st.column_config.NumberColumn("Prioridade", width="small"),
-            "Demanda": st.column_config.NumberColumn("Demanda", width="small"),
-            "Chegada": st.column_config.TextColumn("Chegada", width="small"),
-            "Início": st.column_config.TextColumn("Início", width="small"),
-            "Janela": st.column_config.TextColumn("Janela", width="medium"),
-            "Trecho (km)": st.column_config.NumberColumn(
-                "Trecho (km)",
-                format="%.2f",
-                width="small",
-            ),
-            "Espera (min)": st.column_config.NumberColumn(
-                "Espera (min)",
-                format="%.1f",
-                width="small",
-            ),
-            "Atraso (min)": st.column_config.NumberColumn(
-                "Atraso (min)",
-                format="%.1f",
-                width="small",
-            ),
-            "Tempo desde saída (min)": st.column_config.NumberColumn(
-                "Tempo desde saída (min)",
-                format="%.1f",
-                width="medium",
-            ),
-            "Status hormonal": st.column_config.TextColumn(
-                "Status hormonal",
-                width="medium",
-            ),
-        },
-    )
-
-
-def render_delay_feedback(route_df: pd.DataFrame) -> None:
-    delayed_stops = route_df[route_df["Atraso (min)"] > 0]
-
-    if delayed_stops.empty:
-        st.success("Nenhuma parada apresentou atraso em relação à janela de horário.")
-    else:
-        st.warning(
-            f"{len(delayed_stops)} parada(s) apresentaram atraso em relação à janela de horário."
-        )
-
-def render_hormonal_transport_feedback(
-    route_df: pd.DataFrame,
-) -> None:
-
-    hormonal_rows = route_df[
-        route_df["Status hormonal"] != "Não se aplica"
-    ]
-
-    violated_rows = hormonal_rows[
-        hormonal_rows["Status hormonal"].str.startswith(
-            "Prazo excedido",
-            na=False,
-        )
-    ]
-
-    if hormonal_rows.empty:
-        st.info("A rota não possui entregas de medicamentos hormonais.")
-    elif violated_rows.empty:
-        st.success(
-            "Todas as entregas de medicamentos hormonais "
-            "foram realizadas dentro do prazo máximo."
-        )
-    else:
-        st.warning(
-            f"{len(violated_rows)} entrega(s) de medicamentos hormonais "
-            "ultrapassaram o prazo máximo de transporte."
-        )
-
-
-def render_route_duration_feedback(
-    total_duration_minutes: float,
-    max_duration_minutes: int,
-) -> None:
-
-    if total_duration_minutes <= max_duration_minutes:
-        st.success(
-            "A duração total da rota está dentro do limite operacional."
-        )
-        return
-
-    excess_minutes = total_duration_minutes - max_duration_minutes
-
-    st.warning(
-        "A rota ultrapassou o limite de duração em "
-        f"{excess_minutes:.1f} minutos."
     )
 
 
@@ -282,139 +86,418 @@ def load_experiments_results(file_path: Path = Path("experiments/outputs/experim
 
 
 def render_experiments_table(experiments_df: pd.DataFrame) -> None:
+    if experiments_df.empty:
+        st.warning("O arquivo de experimentos está vazio.")
+        return
+
+    columns_to_show = [
+        "experiment_name",
+        "population_size",
+        "generations",
+        "mutation_probability",
+        "elitism_size",
+        "random_seed",
+        "fitness",
+        "initial_fitness",
+        "fitness_improvement",
+        "total_distance_km",
+        "total_duration_minutes",
+        "priority_penalty",
+        "time_window_penalty",
+        "capacity_penalty",
+        "hormonal_transport_penalty",
+        "route_duration_penalty",
+        "vehicle_compatibility_penalty",
+        "total_supply_demand",
+        "vehicles_count",
+        "longest_vehicle_id",
+        "longest_vehicle_duration_minutes",
+    ]
+
+    available_columns = [
+        column
+        for column in columns_to_show
+        if column in experiments_df.columns
+    ]
+
+    table_df = experiments_df[available_columns].copy()
+
+    rename_map = {
+        "experiment_name": "Experimento",
+        "population_size": "População",
+        "generations": "Gerações",
+        "mutation_probability": "Mutação",
+        "elitism_size": "Elitismo",
+        "random_seed": "Seed",
+        "fitness": "Fitness",
+        "initial_fitness": "Fitness inicial",
+        "fitness_improvement": "Melhoria",
+        "total_distance_km": "Distância total (km)",
+        "total_duration_minutes": "Duração operacional (min)",
+        "priority_penalty": "Prioridade",
+        "time_window_penalty": "Janela",
+        "capacity_penalty": "Capacidade",
+        "hormonal_transport_penalty": "Prazo hormonal",
+        "route_duration_penalty": "Duração máxima",
+        "vehicle_compatibility_penalty": "Compatibilidade",
+        "total_supply_demand": "Demanda total",
+        "vehicles_count": "Veículos",
+        "longest_vehicle_id": "Veículo mais longo",
+        "longest_vehicle_duration_minutes": "Maior duração individual (min)",
+    }
+
+    table_df = table_df.rename(columns=rename_map)
 
     st.dataframe(
-        experiments_df,
+        table_df,
         use_container_width=True,
         hide_index=True,
-        column_config={
-            "experiment": st.column_config.TextColumn("Experimento", width="medium"),
-            "population_size": st.column_config.NumberColumn("População", width="small"),
-            "generations": st.column_config.NumberColumn("Gerações", width="small"),
-            "mutation_probability": st.column_config.NumberColumn(
-                "Mutação",
-                format="%.2f",
-                width="small",
-            ),
-            "random_seed": st.column_config.TextColumn("Seed", width="small"),
-            "elapsed_seconds": st.column_config.NumberColumn(
-                "Tempo (s)",
-                format="%.4f",
-                width="small",
-            ),
-            "best_fitness": st.column_config.NumberColumn(
-                "Fitness",
-                format="%.2f",
-                width="medium",
-            ),
-            "total_distance_km": st.column_config.NumberColumn(
-                "Distância (km)",
-                format="%.2f",
-                width="small",
-            ),
-            "priority_penalty": st.column_config.NumberColumn(
-                "Penalidade prioridade",
-                format="%.2f",
-                width="medium",
-            ),
-            "time_window_penalty": st.column_config.NumberColumn(
-                "Penalidade janela",
-                format="%.2f",
-                width="medium",
-            ),
-            "capacity_penalty": st.column_config.NumberColumn(
-                "Penalidade capacidade",
-                format="%.2f",
-                width="medium",
-            ),
-            "hormonal_transport_penalty": st.column_config.NumberColumn(
-                "Penalidade hormonal",
-                format="%.2f",
-                width="medium",
-            ),
-            "route_duration_penalty": st.column_config.NumberColumn(
-                "Penalidade duração",
-                format="%.2f",
-                width="medium",
-            ),
-            "total_supply_demand": st.column_config.NumberColumn(
-                "Demanda",
-                width="small",
-            ),
-            "total_duration_minutes": st.column_config.NumberColumn(
-                "Duração (min)",
-                format="%.1f",
-                width="small",
-            ),
-            "first_stop_id": st.column_config.TextColumn("Primeira parada", width="small"),
-            "first_stop_type": st.column_config.TextColumn("Tipo inicial", width="medium"),
-        },
     )
+
+    if "vehicle_routes" in experiments_df.columns:
+        with st.expander("Sequências de rotas por experimento"):
+            routes_df = experiments_df[
+                ["experiment_name", "vehicle_routes"]
+            ].rename(
+                columns={
+                    "experiment_name": "Experimento",
+                    "vehicle_routes": "Rotas por veículo",
+                }
+            )
+
+            st.dataframe(
+                routes_df,
+                use_container_width=True,
+                hide_index=True,
+            )
 
 
 def render_experiments_summary(experiments_df: pd.DataFrame) -> None:
+    if experiments_df.empty:
+        st.warning("O arquivo de experimentos está vazio.")
+        return
 
-    best_fitness_row = experiments_df.loc[experiments_df["best_fitness"].idxmin()]
-    best_distance_row = experiments_df.loc[experiments_df["total_distance_km"].idxmin()]
-    fastest_row = experiments_df.loc[experiments_df["elapsed_seconds"].idxmin()]
+    best_row = experiments_df.loc[experiments_df["fitness"].idxmin()]
+    best_experiment_name = best_row["experiment_name"]
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        render_metric_card(
-            "Melhor fitness",
-            format_number_br(float(best_fitness_row["best_fitness"])),
-            f"Experimento: {best_fitness_row['experiment']}",
+        st.metric(
+            "Melhor experimento",
+            best_experiment_name,
+            f"Fitness: {best_row['fitness']:,.2f}",
         )
 
     with col2:
-        render_metric_card(
+        st.metric(
             "Menor distância",
-            f"{best_distance_row['total_distance_km']:.2f} km",
-            f"Experimento: {best_distance_row['experiment']}",
+            f"{experiments_df['total_distance_km'].min():.2f} km",
         )
 
     with col3:
-        render_metric_card(
-            "Menor tempo",
-            f"{fastest_row['elapsed_seconds']:.4f}s",
-            f"Experimento: {fastest_row['experiment']}",
+        st.metric(
+            "Menor duração operacional",
+            f"{experiments_df['total_duration_minutes'].min():.1f} min",
+        )
+
+    with col4:
+        st.metric(
+            "Maior melhoria",
+            f"{experiments_df['fitness_improvement'].max():,.2f}",
         )
 
 
 def render_experiments_charts(experiments_df: pd.DataFrame) -> None:
+    if experiments_df.empty:
+        st.warning("O arquivo de experimentos está vazio.")
+        return
 
-    chart_df = experiments_df.set_index("experiment")
+    required_columns = {
+        "experiment_name",
+        "fitness",
+        "total_distance_km",
+        "total_duration_minutes",
+    }
 
-    st.markdown("#### Fitness por experimento")
+    missing_columns = required_columns - set(experiments_df.columns)
+
+    if missing_columns:
+        st.warning(
+            "Não foi possível renderizar todos os gráficos. "
+            f"Colunas ausentes: {', '.join(sorted(missing_columns))}"
+        )
+        return
+
+    chart_df = experiments_df.copy()
+
+    st.markdown("#### Fitness final por experimento")
     st.bar_chart(
-        chart_df[["best_fitness"]],
+        chart_df,
+        x="experiment_name",
+        y="fitness",
         use_container_width=True,
     )
 
-    st.markdown("#### Distância total por experimento")
+    st.markdown("#### Melhoria do fitness por experimento")
+    if "fitness_improvement" in chart_df.columns:
+        st.bar_chart(
+            chart_df,
+            x="experiment_name",
+            y="fitness_improvement",
+            use_container_width=True,
+        )
+    else:
+        st.info("Coluna `fitness_improvement` não encontrada.")
+
+    st.markdown("#### Distância total da frota por experimento")
     st.bar_chart(
-        chart_df[["total_distance_km"]],
+        chart_df,
+        x="experiment_name",
+        y="total_distance_km",
         use_container_width=True,
     )
 
-    st.markdown("#### Tempo de execução por experimento")
+    st.markdown("#### Duração operacional da frota por experimento")
     st.bar_chart(
-        chart_df[["elapsed_seconds"]],
+        chart_df,
+        x="experiment_name",
+        y="total_duration_minutes",
         use_container_width=True,
     )
 
-    st.markdown("#### Duração total por experimento")
+    penalty_columns = [
+        column
+        for column in [
+            "priority_penalty",
+            "time_window_penalty",
+            "capacity_penalty",
+            "hormonal_transport_penalty",
+            "route_duration_penalty",
+            "vehicle_compatibility_penalty",
+        ]
+        if column in chart_df.columns
+    ]
 
-    st.bar_chart(
-        chart_df[["total_duration_minutes"]],
-        use_container_width=True,
+    if penalty_columns:
+        st.markdown("#### Penalidades por experimento")
+
+        penalty_df = chart_df[
+            ["experiment_name", *penalty_columns]
+        ].set_index("experiment_name")
+
+        st.bar_chart(
+            penalty_df,
+            use_container_width=True,
+        )
+
+
+def build_fleet_dataframe(
+    best_solution,
+    distribution_center,
+    app_settings,
+) -> pd.DataFrame:
+
+    from dataclasses import replace
+
+    from womens_health_route_optimizer.domain import (
+        ATTENDANCE_TYPE_LABELS,
+    )
+    from womens_health_route_optimizer.domain.enums import AttendanceType
+    from womens_health_route_optimizer.optimization.simulation import (
+        simulate_route,
     )
 
-    st.markdown("#### Penalidade por duração máxima")
+    rows = []
 
-    st.bar_chart(
-        chart_df[["route_duration_penalty"]],
-        use_container_width=True,
+    for vehicle_route in best_solution.vehicle_routes:
+        route_settings = replace(
+            app_settings,
+            average_vehicle_speed_kmh=(
+                vehicle_route.vehicle.average_speed_kmh
+                if vehicle_route.vehicle.average_speed_kmh is not None
+                else app_settings.average_vehicle_speed_kmh
+            ),
+            vehicle_capacity=vehicle_route.vehicle.max_supply_capacity,
+        )
+
+        simulation = simulate_route(
+            route_points=vehicle_route.ordered_points,
+            distribution_center=distribution_center,
+            app_settings=route_settings,
+        )
+
+        for stop in simulation.stops:
+            point = stop.point
+
+            if point.attendance_type == AttendanceType.HORMONAL_MEDICATION:
+                if (
+                    stop.elapsed_minutes_from_departure
+                    <= app_settings.max_hormonal_transport_minutes
+                ):
+                    hormonal_status = "Dentro do prazo"
+                else:
+                    excess = (
+                        stop.elapsed_minutes_from_departure
+                        - app_settings.max_hormonal_transport_minutes
+                    )
+                    hormonal_status = f"Fora do prazo ({excess:.1f} min)"
+            else:
+                hormonal_status = "Não se aplica"
+
+            if stop.delay_minutes > 0:
+                status = f"Atraso de {stop.delay_minutes:.1f} min"
+            elif stop.waiting_minutes > 0:
+                status = f"Espera de {stop.waiting_minutes:.1f} min"
+            else:
+                status = "No prazo"
+
+            rows.append(
+                {
+                    "Veículo": vehicle_route.vehicle.id,
+                    "Tipo de veículo": vehicle_route.vehicle.name,
+                    "Refrigerado": (
+                        "Sim"
+                        if vehicle_route.vehicle.is_refrigerated
+                        else "Não"
+                    ),
+                    "Ordem no veículo": stop.sequence,
+                    "Código": point.id,
+                    "Local": point.name,
+                    "Tipo de atendimento": ATTENDANCE_TYPE_LABELS[
+                        point.attendance_type
+                    ],
+                    "Prioridade": point.priority,
+                    "Chegada estimada": stop.estimated_arrival_time.strftime(
+                        "%H:%M"
+                    ),
+                    "Início do atendimento": stop.service_start_time.strftime(
+                        "%H:%M"
+                    ),
+                    "Janela": (
+                        f"{stop.time_window_start.strftime('%H:%M')} - "
+                        f"{stop.time_window_end.strftime('%H:%M')}"
+                    ),
+                    "Status operacional": status,
+                    "Tempo desde saída (min)": round(
+                        stop.elapsed_minutes_from_departure,
+                        1,
+                    ),
+                    "Demanda": point.supply_demand,
+                    "Demanda do veículo": vehicle_route.total_supply_demand,
+                    "Capacidade do veículo": (
+                        vehicle_route.vehicle.max_supply_capacity
+                    ),
+                    "Status hormonal": hormonal_status,
+                }
+            )
+
+        rows.append(
+            {
+                "Veículo": vehicle_route.vehicle.id,
+                "Tipo de veículo": vehicle_route.vehicle.name,
+                "Refrigerado": (
+                    "Sim"
+                    if vehicle_route.vehicle.is_refrigerated
+                    else "Não"
+                ),
+                "Ordem no veículo": "Retorno",
+                "Código": "CD",
+                "Local": distribution_center.name,
+                "Tipo de atendimento": "Retorno à central",
+                "Prioridade": "-",
+                "Chegada estimada": simulation.return_time.strftime("%H:%M"),
+                "Início do atendimento": "-",
+                "Janela": "-",
+                "Status operacional": "Retorno concluído",
+                "Tempo desde saída (min)": round(
+                    simulation.total_duration_minutes,
+                    1,
+                ),
+                "Demanda": 0,
+                "Demanda do veículo": vehicle_route.total_supply_demand,
+                "Capacidade do veículo": (
+                    vehicle_route.vehicle.max_supply_capacity
+                ),
+                "Status hormonal": "Não se aplica",
+            }
+        )
+
+    return pd.DataFrame(rows)
+
+
+def render_fleet_metrics(best_solution) -> None:
+    col1, col2, col3, col4 = st.columns(4)
+
+    col1.metric(
+        "Fitness",
+        f"{best_solution.fitness:,.2f}",
     )
+
+    col2.metric(
+        "Distância total",
+        f"{best_solution.total_distance_km:.2f} km",
+    )
+
+    col3.metric(
+        "Duração operacional",
+        f"{best_solution.total_duration_minutes:.1f} min",
+    )
+
+    col4.metric(
+        "Demanda total",
+        best_solution.total_supply_demand,
+    )
+
+    col5, col6, col7, col8 = st.columns(4)
+
+    col5.metric(
+        "Penalidade janela",
+        f"{best_solution.time_window_penalty:,.2f}",
+    )
+
+    col6.metric(
+        "Penalidade capacidade",
+        f"{best_solution.capacity_penalty:,.2f}",
+    )
+
+    col7.metric(
+        "Penalidade hormonal",
+        f"{best_solution.hormonal_transport_penalty:,.2f}",
+    )
+
+    col8.metric(
+        "Compatibilidade",
+        f"{best_solution.vehicle_compatibility_penalty:,.2f}",
+    )
+
+
+def build_vehicle_summary_dataframe(best_solution) -> pd.DataFrame:
+    rows = []
+
+    for vehicle_route in best_solution.vehicle_routes:
+        rows.append(
+            {
+                "Veículo": vehicle_route.vehicle.id,
+                "Tipo": vehicle_route.vehicle.name,
+                "Refrigerado": (
+                    "Sim" if vehicle_route.vehicle.is_refrigerated else "Não"
+                ),
+                "Paradas": len(vehicle_route.ordered_points),
+                "Demanda": vehicle_route.total_supply_demand,
+                "Capacidade": vehicle_route.vehicle.max_supply_capacity,
+                "Distância (km)": round(vehicle_route.total_distance_km, 2),
+                "Duração (min)": round(vehicle_route.total_duration_minutes, 1),
+                "Fitness": round(vehicle_route.fitness, 2),
+                "Janela": round(vehicle_route.time_window_penalty, 2),
+                "Capacidade penalidade": round(vehicle_route.capacity_penalty, 2),
+                "Hormonal": round(vehicle_route.hormonal_transport_penalty, 2),
+                "Compatibilidade": round(
+                    vehicle_route.vehicle_compatibility_penalty,
+                    2,
+                ),
+            }
+        )
+
+    return pd.DataFrame(rows)
 

@@ -25,6 +25,8 @@ class Settings:
     time_window_penalty_weight: float = 500.0
     capacity_penalty_weight: float = 2000.0
 
+    vehicle_compatibility_penalty_weight: float = 5000.0
+
     max_hormonal_transport_minutes: int = 240
     hormonal_transport_penalty_weight: float = 700.0
 

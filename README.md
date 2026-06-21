@@ -10,10 +10,13 @@ Este repositório implementa o **Projeto 2: otimização de rotas para distribui
 
 O sistema parte de um problema inspirado no TSP e o adapta para um cenário de roteirização com restrições, considerando:
 
-* prioridade por tipo de atendimento;
+* prioridade dos atendimentos;
 * janelas de horário;
-* capacidade máxima de suprimentos do veículo;
-* geração de instruções e relatórios com LLM.
+* capacidade individual de cada veículo;
+* prazo máximo de transporte para medicamentos hormonais;
+* compatibilidade entre tipo de carga e veículo;
+* duração máxima das rotas;
+* distância total percorrida pela frota.
 
 ## Funcionalidades
 
@@ -21,16 +24,22 @@ A aplicação permite:
 
 * carregar dados sintéticos de pontos de atendimento;
 * otimizar rotas com algoritmo genético;
-* configurar população, gerações, mutação e seed aleatória;
-* ajustar capacidade do veículo e pesos das penalidades;
-* visualizar a rota otimizada em mapa;
-* identificar atendimentos por tipo com marcadores coloridos;
+* configurar população, gerações, mutação, elitismo e seed aleatória;
+* distribuir os atendimentos entre veículos com capacidades diferentes;
+* considerar veículo refrigerado para transporte de medicamentos hormonais;
+* ajustar pesos das penalidades da função fitness;
+* visualizar as rotas otimizadas em mapa;
+* identificar veículos por cor no mapa;
+* visualizar prioridade das paradas diretamente nos marcadores;
+* consultar legenda de veículos e prioridades;
 * acompanhar métricas, penalidades e evolução do fitness;
-* visualizar a sequência operacional da rota em tabela;
+* visualizar o roteiro consolidado da frota em tabela;
+* visualizar resumo operacional por veículo;
+* consultar resumo textual da solução;
 * executar e comparar experimentos do algoritmo genético;
 * gerar manual de instruções com LLM;
 * gerar roteiro detalhado de visitas com LLM;
-* responder perguntas em linguagem natural sobre a rota.
+* responder perguntas em linguagem natural sobre a frota otimizada.
 
 ## Tipos de atendimento
 
@@ -44,6 +53,18 @@ O projeto considera quatro tipos de atendimento:
 | Atendimento pós-parto |          4 |
 
 Quanto menor o número, maior a prioridade.
+
+## Frota utilizada
+
+A aplicação considera uma frota heterogênea com três tipos de veículos:
+
+| Veículo             | Capacidade | Refrigerado |
+| ------------------- | ---------: | ----------- |
+| Moto de atendimento |          8 | Não         |
+| Veículo refrigerado |         20 | Sim         |
+| Van operacional     |         30 | Não         |
+
+Cada veículo recebe uma rota própria, com sequência de paradas, demanda atribuída, distância, duração e penalidades específicas.
 
 ## Tecnologias utilizadas
 
@@ -59,7 +80,6 @@ Quanto menor o número, maior a prioridade.
 
 ```text
 ia-tech-challenge-2/
-├── app.py
 ├── data/
 │   ├── attendance_points.csv
 │   └── distribution_center.csv
@@ -68,7 +88,9 @@ ia-tech-challenge-2/
 ├── experiments/
 │   └── run_experiments.py
 ├── outputs/
+│   └── experiments_results.csv
 ├── src/
+│   ├── app.py
 │   └── womens_health_route_optimizer/
 │       ├── config/
 │       ├── data/
@@ -79,6 +101,11 @@ ia-tech-challenge-2/
 │       ├── utils/
 │       └── visualization/
 └── tests/
+    ├── test_distance.py
+    ├── test_fitness.py
+    ├── test_fleet_optimization.py
+    ├── test_loaders.py
+    └── test_simulation.py
 ```
 
 ## Diagramas de arquitetura
@@ -171,9 +198,12 @@ Na sidebar, é possível configurar:
 * tamanho da população;
 * número de gerações;
 * probabilidade de mutação;
+* elitismo;
 * seed aleatória;
-* capacidade do veículo;
+* velocidade média;
+* horário de saída;
 * pesos das penalidades;
+* limites operacionais;
 * URL, modelo e API key do Ollama.
 
 ## Executar os experimentos
@@ -205,19 +235,24 @@ Os testes cobrem:
 * carregamento dos dados;
 * cálculo de distância;
 * função fitness;
-* operadores genéticos;
-* simulação da rota.
+* simulação de rotas;
+* operadores da frota;
+* geração da população inicial;
+* crossover e mutação;
+* avaliação da solução otimizada;
+* compatibilidade entre veículo e tipo de carga.
 
-## [Relatório Técnico](docs/relatorio_tecnico.pdf)
+## Relatório Técnico
 
 A explicação completa da solução está no [relatório técnico](docs/relatorio_tecnico.pdf), que detalha:
 
 * problema escolhido;
 * modelagem dos dados sintéticos;
-* adaptação do TSP para roteirização;
+* adaptação do problema de roteirização;
 * representação genética;
 * função fitness;
 * restrições implementadas;
+* visualização da solução;
 * integração com LLM;
 * experimentos;
 * resultados;

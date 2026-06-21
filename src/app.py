@@ -1,40 +1,37 @@
 import pandas as pd
 import streamlit as st
 from streamlit_folium import st_folium
+from womens_health_route_optimizer.visualization import create_fleet_map
 
 from womens_health_route_optimizer.data import (
     load_attendance_points,
     load_distribution_center,
 )
-from womens_health_route_optimizer.domain import Vehicle
 from womens_health_route_optimizer.llm import RouteReportGenerator
-from womens_health_route_optimizer.optimization import (
-    RouteOptimizer,
-    simulate_route,
-)
+from womens_health_route_optimizer.optimization import RouteOptimizer
 from womens_health_route_optimizer.ui import (
-    build_route_dataframe,
     format_number_br,
     load_css,
     load_experiments_results,
     render_capacity_warning,
-    render_delay_feedback,
     render_experiments_charts,
     render_experiments_summary,
     render_experiments_table,
-    render_hormonal_transport_feedback,
-    render_route_duration_feedback,
-    render_legend,
     render_llm_output,
     render_metric_card,
     render_page_header,
-    render_route_dataframe,
     render_section_title,
     render_settings_changed_warning,
     render_sidebar,
 )
-from womens_health_route_optimizer.utils.formatters import format_route_summary
-from womens_health_route_optimizer.visualization import create_route_map
+
+from womens_health_route_optimizer.ui.components import (
+    build_fleet_dataframe,
+    build_vehicle_summary_dataframe,
+    render_fleet_metrics,
+)
+
+from womens_health_route_optimizer.utils.formatters import format_fleet_summary
 
 
 st.set_page_config(
@@ -57,6 +54,9 @@ def reset_llm_outputs() -> None:
 
 
 def ensure_session_state() -> None:
+    if "last_run_fleet" not in st.session_state:
+        st.session_state.last_run_fleet = None
+
     if "optimization_result" not in st.session_state:
         st.session_state.optimization_result = None
 
@@ -80,45 +80,38 @@ center, points = load_data()
 
 render_page_header()
 
-run_settings, run_optimization = render_sidebar()
+run_settings, run_optimization, run_fleet = render_sidebar()
 
 settings_changed = (
     st.session_state.last_run_settings is not None
-    and st.session_state.last_run_settings != run_settings
+    and (
+        st.session_state.last_run_settings != run_settings
+        or st.session_state.last_run_fleet != run_fleet
+    )
 )
 
 if settings_changed:
     render_settings_changed_warning()
 
-vehicle = Vehicle(
-    id="V001",
-    name="Veículo 1",
-    max_supply_capacity=run_settings.vehicle_capacity,
-)
-
 if run_optimization or st.session_state.optimization_result is None:
-    with st.spinner("Otimizando rota com algoritmo genético..."):
+    with st.spinner("Otimizando rotas com frota heterogênea..."):
         st.session_state.optimization_result = RouteOptimizer(
             distribution_center=center,
             attendance_points=points,
-            vehicle=vehicle,
             app_settings=run_settings,
+            fleet=run_fleet,
         ).optimize()
 
         st.session_state.last_run_settings = run_settings
+        st.session_state.last_run_fleet = run_fleet
         reset_llm_outputs()
 
 result = st.session_state.optimization_result
-best_route = result.best_route
+best_solution = result.best_solution
 active_settings = st.session_state.last_run_settings or run_settings
 
-route_simulation = simulate_route(
-    route_points=best_route.ordered_points,
-    distribution_center=center,
-    app_settings=active_settings,
-)
 
-render_section_title("Resumo da solução")
+render_section_title("Resumo da solução com frota heterogênea")
 
 metric_col1, metric_col2, metric_col3 = st.columns(3)
 metric_col4, metric_col5, metric_col6 = st.columns(3)
@@ -126,39 +119,39 @@ metric_col4, metric_col5, metric_col6 = st.columns(3)
 with metric_col1:
     render_metric_card(
         "Distância total",
-        f"{best_route.total_distance_km:.2f} km",
-        "Percurso completo com retorno à central",
+        f"{best_solution.total_distance_km:.2f} km",
+        "Soma das distâncias percorridas por todos os veículos",
     )
 
 with metric_col2:
     render_metric_card(
         "Fitness final",
-        format_number_br(best_route.fitness),
-        "Distância e penalidades",
+        format_number_br(best_solution.fitness),
+        "Distância e penalidades da frota",
     )
 
 with metric_col3:
     render_metric_card(
         "Demanda total",
-        str(best_route.total_supply_demand),
-        f"Capacidade do veículo: {vehicle.max_supply_capacity}",
+        str(best_solution.total_supply_demand),
+        "Demanda somada de todos os atendimentos",
     )
 
 with metric_col4:
     render_metric_card(
-        "Duração total",
-        f"{best_route.total_duration_minutes:.1f} min",
-        f"Limite: {active_settings.max_route_duration_minutes} min",
+        "Duração operacional",
+        f"{best_solution.total_duration_minutes:.1f} min",
+        (
+            "Maior duração entre as rotas, considerando "
+            "execução paralela da frota"
+        ),
     )
 
 with metric_col5:
     render_metric_card(
-        "Retorno à central",
-        route_simulation.return_time.strftime("%H:%M"),
-        (
-            f"Último trecho: "
-            f"{route_simulation.return_leg_distance_km:.2f} km"
-        ),
+        "Veículos utilizados",
+        str(len(best_solution.vehicle_routes)),
+        "Frota heterogênea disponível",
     )
 
 with metric_col6:
@@ -178,75 +171,100 @@ with metric_col6:
 render_section_title("Penalidades aplicadas")
 
 penalty_col1, penalty_col2, penalty_col3 = st.columns(3)
-penalty_col4, penalty_col5 = st.columns(2)
+penalty_col4, penalty_col5, penalty_col6 = st.columns(3)
 
 with penalty_col1:
     st.metric(
         "Prioridade",
-        format_number_br(best_route.priority_penalty),
+        format_number_br(best_solution.priority_penalty),
     )
 
 with penalty_col2:
     st.metric(
         "Janela de horário",
-        format_number_br(best_route.time_window_penalty),
+        format_number_br(best_solution.time_window_penalty),
     )
 
 with penalty_col3:
     st.metric(
         "Capacidade",
-        format_number_br(best_route.capacity_penalty),
+        format_number_br(best_solution.capacity_penalty),
     )
 
 with penalty_col4:
     st.metric(
         "Prazo hormonal",
-        format_number_br(
-            best_route.hormonal_transport_penalty
-        ),
+        format_number_br(best_solution.hormonal_transport_penalty),
     )
 
 with penalty_col5:
     st.metric(
         "Duração máxima",
-        format_number_br(
-            best_route.route_duration_penalty
-        ),
+        format_number_br(best_solution.route_duration_penalty),
     )
 
-render_route_duration_feedback(
-    total_duration_minutes=best_route.total_duration_minutes,
-    max_duration_minutes=active_settings.max_route_duration_minutes,
+with penalty_col6:
+    st.metric(
+        "Compatibilidade veículo/carga",
+        format_number_br(best_solution.vehicle_compatibility_penalty),
+    )
+
+
+if best_solution.route_duration_penalty > 0:
+    st.warning(
+        "A duração operacional da frota ultrapassou o limite máximo definido."
+    )
+else:
+    st.success(
+        "A duração operacional da frota está dentro do limite máximo definido."
+    )
+
+if best_solution.capacity_penalty > 0:
+    render_capacity_warning()
+else:
+    st.success("Todas as rotas respeitam a capacidade dos veículos.")
+
+if best_solution.hormonal_transport_penalty > 0:
+    st.warning(
+        "Há entregas de medicamentos hormonais fora do prazo máximo de transporte."
+    )
+else:
+    st.success(
+        "Todas as entregas de medicamentos hormonais respeitam o prazo máximo."
+    )
+
+if best_solution.vehicle_compatibility_penalty > 0:
+    st.warning(
+        "Há medicamentos hormonais atribuídos a veículos sem refrigeração."
+    )
+else:
+    st.success(
+        "As entregas hormonais foram atribuídas a veículos compatíveis."
+    )
+
+st.markdown("## Visão operacional da frota")
+
+st.caption(
+    "Mapa principal da solução otimizada. "
+    "Cada cor representa um veículo, e cada marcador exibe a prioridade da parada."
 )
 
-if best_route.capacity_penalty > 0:
-    render_capacity_warning()
-
-render_section_title("Mapa da rota otimizada")
-
-render_legend()
-
-route_map = create_route_map(
-    route=best_route,
+fleet_map = create_fleet_map(
+    solution=best_solution,
     distribution_center=center,
     app_settings=active_settings,
 )
 
 st_folium(
-    route_map,
+    fleet_map,
     width=None,
-    height=620,
+    height=720,
 )
 
-route_df = build_route_dataframe(
-    route=best_route,
-    distribution_center=center,
-    app_settings=active_settings,
-)
-
-tab_table, tab_summary, tab_fitness, tab_experiments, tab_llm = st.tabs(
+tab_table, tab_vehicle_summary, tab_summary, tab_fitness, tab_experiments, tab_llm = st.tabs(
     [
-        "Tabela da rota",
+        "Roteiro da frota",
+        "Resumo por veículo",
         "Resumo textual",
         "Evolução do fitness",
         "Experimentos",
@@ -254,24 +272,50 @@ tab_table, tab_summary, tab_fitness, tab_experiments, tab_llm = st.tabs(
     ]
 )
 
-with tab_table:
-    st.markdown("### Sequência operacional de visitas")
 
-    render_route_dataframe(route_df)
-    render_delay_feedback(route_df)
-    render_hormonal_transport_feedback(route_df)
+with tab_table:
+    st.markdown("### Roteiro consolidado da frota")
+
+    fleet_df = build_fleet_dataframe(
+        best_solution=best_solution,
+        distribution_center=center,
+        app_settings=active_settings,
+    )
+
+    st.dataframe(
+        fleet_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+with tab_vehicle_summary:
+    st.markdown("### Resumo operacional por veículo")
+
+    vehicle_summary_df = build_vehicle_summary_dataframe(best_solution)
+
+    st.dataframe(
+        vehicle_summary_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+    st.markdown("### Métricas gerais da frota")
+    render_fleet_metrics(best_solution)
+
 
 with tab_summary:
-    st.markdown("### Resumo textual da rota")
+    st.markdown("### Resumo textual da frota")
 
     st.code(
-        format_route_summary(
-            route=best_route,
+        format_fleet_summary(
+            solution=best_solution,
             distribution_center=center,
             app_settings=active_settings,
         ),
         language="text",
     )
+
 
 with tab_fitness:
     st.markdown("### Evolução do melhor fitness por geração")
@@ -289,6 +333,7 @@ with tab_fitness:
         y="Fitness",
         use_container_width=True,
     )
+
 
 with tab_experiments:
     st.markdown("### Comparação de experimentos do algoritmo genético")
@@ -314,6 +359,7 @@ with tab_experiments:
         st.markdown("### Gráficos comparativos")
         render_experiments_charts(experiments_df)
 
+
 with tab_llm:
     st.markdown("### Geração de relatórios com LLM")
 
@@ -333,7 +379,7 @@ with tab_llm:
                 try:
                     st.session_state.instruction_manual = (
                         report_generator.generate_instruction_manual(
-                            route=best_route,
+                            solution=best_solution,
                             distribution_center=center,
                         )
                     )
@@ -346,9 +392,11 @@ with tab_llm:
         if st.button("Gerar roteiro detalhado", use_container_width=True):
             with st.spinner("Gerando roteiro..."):
                 try:
-                    st.session_state.visit_plan = report_generator.generate_visit_plan(
-                        route=best_route,
-                        distribution_center=center,
+                    st.session_state.visit_plan = (
+                        report_generator.generate_visit_plan(
+                            solution=best_solution,
+                            distribution_center=center,
+                        )
                     )
                     st.session_state.instruction_manual = None
                     st.session_state.llm_answer = None
@@ -369,7 +417,7 @@ with tab_llm:
 
     question = st.text_input(
         "Digite uma pergunta",
-        placeholder="Ex.: Qual é o próximo atendimento prioritário?",
+        placeholder="Ex.: Qual veículo atende os medicamentos hormonais?",
     )
 
     if st.button("Responder pergunta", use_container_width=True):
@@ -378,10 +426,12 @@ with tab_llm:
         else:
             with st.spinner("Consultando LLM..."):
                 try:
-                    st.session_state.llm_answer = report_generator.answer_question(
-                        route=best_route,
-                        distribution_center=center,
-                        question=question,
+                    st.session_state.llm_answer = (
+                        report_generator.answer_question(
+                            solution=best_solution,
+                            distribution_center=center,
+                            question=question,
+                        )
                     )
                     st.session_state.instruction_manual = None
                     st.session_state.visit_plan = None
@@ -392,3 +442,5 @@ with tab_llm:
         title="Resposta",
         content=st.session_state.llm_answer,
     )
+
+
